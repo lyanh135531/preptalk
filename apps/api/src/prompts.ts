@@ -89,9 +89,36 @@ export const buildAnswerReviewMessages = (input: AnswerReviewPromptInput) => [
       "All score fields must be integer percentages from 0 to 100, not 0 to 5 ratings.",
       "Decide whether the next question should be a follow-up, a new topic, or end.",
       input.currentQuestionNumber >= input.maxQuestions
-        ? "This is the final allowed question. decision must be end and nextQuestion must be null."
-        : "If decision is follow_up or new_topic, nextQuestion must be a concise role-specific question.",
+        ? "This is the final allowed question. decision must be end."
+        : "If decision is end, it means the interview is completed.",
       "Return only JSON."
+    ].join("\n")
+  }
+];
+
+export const buildNextQuestionMessages = (input: {
+  readonly language: InterviewLanguage;
+  readonly role: string;
+  readonly history: readonly InterviewTurn[];
+  readonly decision: string;
+}) => [
+  {
+    role: "system" as const,
+    content: buildSystemInstruction(input.language)
+  },
+  {
+    role: "user" as const,
+    content: [
+      `Interview language: ${languageNameByCode[input.language]}`,
+      `Target role: ${input.role}`,
+      "Previous interview history:",
+      formatHistory(input.history),
+      `The previous question evaluation decided that the next step should be a: ${input.decision}`,
+      input.decision === "follow_up"
+        ? "Create a follow-up question digging deeper into the candidate's last answer."
+        : "Create a new question on a different topic relevant to the target role.",
+      "The question must be practical, concise, and suitable for a spoken interview.",
+      "Do not include greetings. Return only JSON matching the schema."
     ].join("\n")
   }
 ];

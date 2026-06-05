@@ -13,7 +13,8 @@ import { ApiError, getHealthStatus } from "./api/client";
 import {
   startInterview,
   submitAnswer,
-  suggestAnswer
+  suggestAnswer,
+  getNextQuestion
 } from "./api/client";
 import type { ActiveSpeechCapture } from "./lib/audio";
 import {
@@ -50,7 +51,6 @@ export const App = () => {
   const [customRole, setCustomRole] = useState<string>("");
   const [session, setSession] = useState<InterviewSession | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [pendingNextQuestion, setPendingNextQuestion] = useState<Question | null>(null);
   const [history, setHistory] = useState<InterviewTurn[]>([]);
   const [suggestedAnswer, setSuggestedAnswer] = useState<string | null>(null);
   const [speakingTips, setSpeakingTips] = useState<string[]>([]);
@@ -139,7 +139,6 @@ export const App = () => {
 
       setSession(response.session);
       setCurrentQuestion(response.question);
-      setPendingNextQuestion(null);
       setHistory([]);
       setSuggestedAnswer(null);
       setSpeakingTips([]);
@@ -234,10 +233,9 @@ export const App = () => {
 
       setSession(response.session);
       setHistory(nextHistory);
-      setPendingNextQuestion(response.nextQuestion);
       setSuggestedAnswer(null);
       setSpeakingTips([]);
-      persistInterview(response.session, currentQuestion, response.nextQuestion, nextHistory);
+      persistInterview(response.session, currentQuestion, null, nextHistory);
     } catch (error: unknown) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -250,7 +248,6 @@ export const App = () => {
       return;
     }
 
-    setPendingNextQuestion(null);
     setSuggestedAnswer(null);
     setSpeakingTips([]);
     setNoticeMessage(null);
@@ -262,20 +259,42 @@ export const App = () => {
       return;
     }
 
-    if (pendingNextQuestion === null) {
+    if (session.currentQuestionNumber >= session.maxQuestions) {
       setStage("summary");
       setNoticeMessage(null);
       persistInterview(session, null, null, history);
       return;
     }
 
-    setCurrentQuestion(pendingNextQuestion);
-    setPendingNextQuestion(null);
-    setSuggestedAnswer(null);
-    setSpeakingTips([]);
+    setErrorMessage(null);
     setNoticeMessage(null);
-    persistInterview(session, pendingNextQuestion, null, history);
-    await playQuestion(pendingNextQuestion.text, session.language);
+    setWorkStatus("playing");
+
+    try {
+      const response = await getNextQuestion({
+        session,
+        history
+      });
+
+      if (response.question === null) {
+        setStage("summary");
+        setNoticeMessage(null);
+        persistInterview(response.session, null, null, history);
+        setWorkStatus("idle");
+        return;
+      }
+
+      setSession(response.session);
+      setCurrentQuestion(response.question);
+      setSuggestedAnswer(null);
+      setSpeakingTips([]);
+      setNoticeMessage(null);
+      persistInterview(response.session, response.question, null, history);
+      await playQuestion(response.question.text, response.session.language);
+    } catch (error: unknown) {
+      setWorkStatus("idle");
+      setErrorMessage(getErrorMessage(error));
+    }
   };
 
   const handleResumeStoredInterview = (): void => {
@@ -285,7 +304,6 @@ export const App = () => {
 
     setSession(storedInterview.session);
     setCurrentQuestion(storedInterview.currentQuestion);
-    setPendingNextQuestion(storedInterview.pendingNextQuestion);
     setHistory([
       ...storedInterview.history
     ]);
@@ -311,7 +329,6 @@ export const App = () => {
     setStoredInterview(null);
     setSession(null);
     setCurrentQuestion(null);
-    setPendingNextQuestion(null);
     setHistory([]);
     setSuggestedAnswer(null);
     setSpeakingTips([]);
@@ -382,13 +399,11 @@ export const App = () => {
           history={history}
           isBusy={isBusy}
           lastTurn={lastTurn}
-          pendingNextQuestion={pendingNextQuestion}
           session={session}
           noticeMessage={noticeMessage}
           speakingTips={speakingTips}
           suggestedAnswer={suggestedAnswer}
           workStatus={workStatus}
-          onFinish={handleNextQuestion}
           onNextQuestion={handleNextQuestion}
           onReplay={handleReplayQuestion}
           onReset={handleResetInterview}

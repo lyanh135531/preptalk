@@ -7,7 +7,6 @@ const CONFIG = {
   OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
   CHAT_MODEL: process.env["OPENROUTER_CHAT_MODEL"] ?? "nvidia/nemotron-3-super-120b-a12b:free",
   APP_TITLE: "PrepTalk",
-  MAX_QUESTIONS: 6,
 } as const;
 
 async function fetchOpenRouter(
@@ -125,14 +124,16 @@ const interviewTurnSchema = z.object({
   answeredAt: z.string().datetime(),
 });
 
-const answerPayloadSchema = z.object({
+const nextQuestionRequestSchema = z.object({
   session: interviewSessionSchema,
-  question: questionSchema,
   history: z.array(interviewTurnSchema).max(12),
-  transcript: z.string().trim().min(1).max(12000),
 });
 
-// ── JSON Schema ──
+const nextAiResponseSchema = z.object({
+  question: questionSchema,
+});
+
+// ── JSON Schema for OpenRouter ──
 
 const questionJsonSchema = {
   type: "object",
@@ -146,63 +147,11 @@ const questionJsonSchema = {
   },
 };
 
-const answerFeedbackJsonSchema = {
+const nextQuestionJsonSchema = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "correctedAnswer", "correctionSpans", "issues", "grammarFeedback",
-    "contentFeedback", "pronunciationHints", "strengths", "improvements",
-    "score", "decision", "decisionReason",
-  ],
-  properties: {
-    correctedAnswer: { type: "string" },
-    correctionSpans: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["text", "type"],
-        properties: {
-          text: { type: "string" },
-          type: { type: "string", enum: ["grammar", "spelling", "word_choice", "clarity", "content_gap", "strong_point", "neutral"] },
-        },
-      },
-    },
-    issues: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["type", "originalText", "suggestedText", "explanation", "severity"],
-        properties: {
-          type: { type: "string", enum: ["grammar", "spelling", "word_choice", "clarity", "content_gap", "strong_point"] },
-          originalText: { type: "string" },
-          suggestedText: { type: "string" },
-          explanation: { type: "string" },
-          severity: { type: "string", enum: ["low", "medium", "high"] },
-        },
-      },
-    },
-    grammarFeedback: { type: "array", items: { type: "string" } },
-    contentFeedback: { type: "array", items: { type: "string" } },
-    pronunciationHints: { type: "array", items: { type: "string" } },
-    strengths: { type: "array", items: { type: "string" } },
-    improvements: { type: "array", items: { type: "string" } },
-    score: {
-      type: "object",
-      additionalProperties: false,
-      required: ["communication", "roleRelevance", "structure", "languageAccuracy", "confidence"],
-      properties: {
-        communication: { type: "integer", minimum: 0, maximum: 100 },
-        roleRelevance: { type: "integer", minimum: 0, maximum: 100 },
-        structure: { type: "integer", minimum: 0, maximum: 100 },
-        languageAccuracy: { type: "integer", minimum: 0, maximum: 100 },
-        confidence: { type: "integer", minimum: 0, maximum: 100 },
-      },
-    },
-    decision: { type: "string", enum: ["follow_up", "new_topic", "end"] },
-    decisionReason: { type: "string" },
-  },
+  required: ["question"],
+  properties: { question: questionJsonSchema },
 };
 
 // ── Prompts ──
@@ -241,52 +190,53 @@ export default async function handler(
     return;
   }
 
-  const parsed = answerPayloadSchema.safeParse(req.body);
+  const parsed = nextQuestionRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message, code: "INVALID_INPUT" });
     return;
   }
 
-  const { session, question, history, transcript } = parsed.data;
-  const trimmedTranscript = transcript.trim();
+  const { session, history } = parsed.data;
+  const lastTurn = history.length > 0 ? history[history.length - 1] : null;
 
-  if (trimmedTranscript.length === 0) {
-    res.status(422).json({ error: "No speech was detected. Please answer again and speak clearly.", code: "INVALID_INPUT" });
+  const isFinalQuestion = session.currentQuestionNumber >= session.maxQuestions;
+  const isEndDecision = lastTurn !== null && lastTurn.feedback.decision === "end";
+
+  if (isFinalQuestion || isEndDecision) {
+    res.json({
+      session,
+      question: null,
+    });
     return;
   }
+
+  const decision = lastTurn !== null ? lastTurn.feedback.decision : "new_topic";
 
   const messages = [
     { role: "system", content: buildSystemInstruction(session.language) },
     {
       role: "user",
       content: [
-        `Candidate: ${session.candidateName}`,
         `Interview language: ${languageName[session.language] || "English"}`,
         `Target role: ${session.role}`,
-        `Question ${session.currentQuestionNumber} of ${session.maxQuestions}: ${question.text}`,
-        `Transcript from speech-to-text: ${trimmedTranscript}`,
         "Previous interview history:",
         formatHistory(history),
-        "Review only what the candidate actually said in the transcript.",
-        "Correct spelling, grammar, wording, clarity, and role-content issues without inventing experience the candidate did not mention.",
-        "For pronunciation, provide transcript-based hints only. Do not claim phoneme-level scoring.",
-        "Use correctionSpans to reconstruct the corrected answer in order. Use neutral spans for unchanged text.",
-        "All score fields must be integer percentages from 0 to 100, not 0 to 5 ratings.",
-        "Decide whether the next question should be a follow-up, a new topic, or end.",
-        session.currentQuestionNumber >= session.maxQuestions
-          ? "This is the final allowed question. decision must be end."
-          : "If decision is end, it means the interview is completed.",
-        "Return only JSON.",
+        `The previous question evaluation decided that the next step should be a: ${decision}`,
+        decision === "follow_up"
+          ? "Create a follow-up question digging deeper into the candidate's last answer."
+          : "Create a new question on a different topic relevant to the target role.",
+        "The question must be practical, concise, and suitable for a spoken interview.",
+        "Do not include greetings. Return only JSON matching the schema.",
       ].join("\n"),
     },
   ];
 
   const raw = await fetchOpenRouter(
     messages,
-    "answer_review_response",
-    answerFeedbackJsonSchema,
-    0.4,
-    1800
+    "interview_next_response",
+    nextQuestionJsonSchema,
+    0.7,
+    700
   );
 
   if (!raw) {
@@ -298,34 +248,18 @@ export default async function handler(
   }
 
   try {
-    const aiResponse = answerFeedbackSchema.parse(JSON.parse(raw));
-    const isFinalQuestion = session.currentQuestionNumber >= session.maxQuestions;
-
-    const feedback = {
-      transcript: trimmedTranscript,
-      correctedAnswer: aiResponse.correctedAnswer,
-      correctionSpans: aiResponse.correctionSpans,
-      issues: aiResponse.issues,
-      grammarFeedback: aiResponse.grammarFeedback,
-      contentFeedback: aiResponse.contentFeedback,
-      pronunciationHints: aiResponse.pronunciationHints,
-      strengths: aiResponse.strengths,
-      improvements: aiResponse.improvements,
-      score: aiResponse.score,
-      decision: isFinalQuestion ? "end" as const : aiResponse.decision,
-      decisionReason: aiResponse.decisionReason,
+    const aiResponse = nextAiResponseSchema.parse(JSON.parse(raw));
+    const nextQuestion = {
+      ...aiResponse.question,
+      id: aiResponse.question.id.trim().length > 0 ? aiResponse.question.id : randomUUID(),
     };
 
-    const turn = {
-      id: randomUUID(),
-      question,
-      transcript: trimmedTranscript,
-      correctedAnswer: aiResponse.correctedAnswer,
-      feedback,
-      answeredAt: new Date().toISOString(),
+    const updatedSession = {
+      ...session,
+      currentQuestionNumber: session.currentQuestionNumber + 1,
     };
 
-    res.json({ session, turn });
+    res.json({ session: updatedSession, question: nextQuestion });
   } catch {
     res.status(502).json({
       error: "The AI interviewer returned an invalid response. Please try again.",

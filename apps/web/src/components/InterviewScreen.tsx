@@ -16,13 +16,11 @@ type InterviewScreenProps = {
   readonly history: readonly InterviewTurn[];
   readonly isBusy: boolean;
   readonly lastTurn: InterviewTurn | null | undefined;
-  readonly pendingNextQuestion: Question | null;
   readonly session: InterviewSession;
   readonly noticeMessage: string | null;
   readonly speakingTips: readonly string[];
   readonly suggestedAnswer: string | null;
   readonly workStatus: WorkStatus;
-  readonly onFinish: () => Promise<void>;
   readonly onNextQuestion: () => Promise<void>;
   readonly onReplay: () => Promise<void>;
   readonly onReset: () => void;
@@ -309,7 +307,7 @@ const InterviewActions = (props: InterviewScreenProps) => (
       className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-650 px-4 py-2.5 text-xs font-bold text-white hover:from-cyan-500 hover:to-indigo-500 transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:from-slate-800 disabled:to-slate-800"
       type="button"
       disabled={!props.canUseInterviewActions || !props.lastTurn || props.isBusy || props.workStatus === "recording"}
-      onClick={props.pendingNextQuestion === null ? props.onFinish : props.onNextQuestion}
+      onClick={props.onNextQuestion}
     >
       {props.workStatus === "playing" ? (
         <>
@@ -321,7 +319,7 @@ const InterviewActions = (props: InterviewScreenProps) => (
         </>
       ) : (
         <>
-          <span>{props.pendingNextQuestion === null ? "Finish Session" : "Next"}</span>
+          <span>{props.session.currentQuestionNumber >= props.session.maxQuestions ? "Finish Session" : "Next"}</span>
           <ArrowRight size={15} aria-hidden="true" />
         </>
       )}

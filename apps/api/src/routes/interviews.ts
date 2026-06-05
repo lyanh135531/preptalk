@@ -5,7 +5,8 @@ import type {
   InterviewTurn,
   Question,
   StartInterviewResponse,
-  SuggestAnswerResponse
+  SuggestAnswerResponse,
+  NextQuestionResponse
 } from "@preptalk/shared";
 import {
   answerFeedbackSchema,
@@ -15,7 +16,9 @@ import {
   startInterviewRequestSchema,
   startInterviewResponseSchema,
   suggestAnswerRequestSchema,
-  suggestAnswerResponseSchema
+  suggestAnswerResponseSchema,
+  nextQuestionRequestSchema,
+  nextQuestionResponseSchema
 } from "@preptalk/shared";
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
@@ -32,7 +35,8 @@ import type { OpenRouterClient } from "../open-router-client.js";
 import {
   buildAnswerReviewMessages,
   buildStartMessages,
-  buildSuggestMessages
+  buildSuggestMessages,
+  buildNextQuestionMessages
 } from "../prompts.js";
 
 type InterviewRouterConfig = {
@@ -46,18 +50,6 @@ const startAiResponseSchema = z.object({
 
 const answerReviewAiResponseSchema = answerFeedbackSchema.omit({
   transcript: true
-}).extend({
-  nextQuestion: questionSchema.nullable()
-}).superRefine((value, context) => {
-  if (value.decision !== "end" && value.nextQuestion === null) {
-    context.addIssue({
-      code: "custom",
-      message: "nextQuestion is required when decision is follow_up or new_topic",
-      path: [
-        "nextQuestion"
-      ]
-    });
-  }
 });
 
 export const createInterviewRouter = (config: InterviewRouterConfig): Router => {
@@ -156,15 +148,6 @@ export const createInterviewRouter = (config: InterviewRouterConfig): Router => 
       transcript,
       decision: isFinalQuestion ? "end" : aiResponse.decision
     });
-    const nextQuestion = isFinalQuestion ? null : normalizeNullableQuestion(aiResponse.nextQuestion);
-    const nextQuestionNumber = nextQuestion === null
-      ? payload.session.currentQuestionNumber
-      : payload.session.currentQuestionNumber + 1;
-
-    const session: InterviewSession = {
-      ...payload.session,
-      currentQuestionNumber: nextQuestionNumber
-    };
 
     const turn: InterviewTurn = {
       id: randomUUID(),
@@ -176,12 +159,59 @@ export const createInterviewRouter = (config: InterviewRouterConfig): Router => 
     };
 
     const responsePayload: AnswerInterviewResponse = {
-      session,
-      turn,
-      nextQuestion
+      session: payload.session,
+      turn
     };
 
     response.json(answerInterviewResponseSchema.parse(responsePayload));
+  });
+
+  router.post("/next", async (request: Request, response: Response<NextQuestionResponse>) => {
+    const parsedBody = nextQuestionRequestSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      throw new HttpRequestError(400, parsedBody.error.message, "INVALID_INPUT");
+    }
+
+    const { session, history } = parsedBody.data;
+    const lastTurn = history.length > 0 ? history[history.length - 1] : null;
+
+    const isFinalQuestion = session.currentQuestionNumber >= session.maxQuestions;
+    const isEndDecision = lastTurn !== null && lastTurn.feedback.decision === "end";
+
+    if (isFinalQuestion || isEndDecision) {
+      response.json({
+        session,
+        question: null
+      });
+      return;
+    }
+
+    const aiResponse = await config.openRouterClient.chatJson({
+      routeName: "interview_next",
+      messages: buildNextQuestionMessages({
+        language: session.language,
+        role: session.role,
+        history,
+        decision: lastTurn !== null ? lastTurn.feedback.decision : "new_topic"
+      }),
+      responseSchemaName: "interview_next_response",
+      responseJsonSchema: startInterviewJsonSchema,
+      validationSchema: startAiResponseSchema,
+      temperature: 0.7,
+      maxTokens: 700
+    });
+
+    const nextQuestion = normalizeQuestion(aiResponse.question);
+    const updatedSession: InterviewSession = {
+      ...session,
+      currentQuestionNumber: session.currentQuestionNumber + 1
+    };
+
+    response.json({
+      session: updatedSession,
+      question: nextQuestion
+    });
   });
 
   return router;

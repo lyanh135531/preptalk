@@ -5,14 +5,17 @@ import type {
   StartInterviewRequest,
   StartInterviewResponse,
   SuggestAnswerRequest,
-  SuggestAnswerResponse
+  SuggestAnswerResponse,
+  NextQuestionRequest,
+  NextQuestionResponse
 } from "@preptalk/shared";
 import {
   apiErrorResponseSchema,
   answerInterviewResponseSchema,
   healthResponseSchema,
   startInterviewResponseSchema,
-  suggestAnswerResponseSchema
+  suggestAnswerResponseSchema,
+  nextQuestionResponseSchema
 } from "@preptalk/shared";
 import type { ZodSchema } from "zod";
 
@@ -54,6 +57,10 @@ export const suggestAnswer = async (request: SuggestAnswerRequest): Promise<Sugg
 
 export const submitAnswer = async (payload: AnswerPayload): Promise<AnswerInterviewResponse> => {
   return sendJson("/api/interviews/answer", payload, answerInterviewResponseSchema);
+};
+
+export const getNextQuestion = async (request: NextQuestionRequest): Promise<NextQuestionResponse> => {
+  return sendJson("/api/interviews/next", request, nextQuestionResponseSchema);
 };
 
 const sendJson = async <TResponse>(
