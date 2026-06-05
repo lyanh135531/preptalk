@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "buildCommand": "npm install && npm run build -w @preptalk/web",
-  "outputDirectory": "apps/web/dist",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
