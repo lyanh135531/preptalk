@@ -53,6 +53,16 @@ const speechLanguageByCode: Record<InterviewLanguage, string> = {
   vi: "vi-VN"
 };
 
+const ttsVoiceNameByLanguage: Record<InterviewLanguage, string> = {
+  en: getEnvValue("VITE_TTS_EN_VOICE_NAME"),
+  vi: getEnvValue("VITE_TTS_VI_VOICE_NAME")
+};
+
+const ttsRate = Number.parseFloat(getEnvValue("VITE_TTS_RATE"));
+const ttsPitch = Number.parseFloat(getEnvValue("VITE_TTS_PITCH"));
+const defaultTtsRate = 0.95;
+const defaultTtsPitch = 1;
+
 export const ensureSpeechRecognitionSupport = (): void => {
   if (getSpeechRecognitionConstructor() === null) {
     throw new Error("Speech recognition is not available in this browser. Please use the latest Chrome or Edge.");
@@ -135,8 +145,8 @@ export const speakText = async (text: string, language: InterviewLanguage): Prom
   await new Promise<void>((resolve, reject): void => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = speechLanguageByCode[language];
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
+    utterance.rate = Number.isFinite(ttsRate) ? ttsRate : defaultTtsRate;
+    utterance.pitch = Number.isFinite(ttsPitch) ? ttsPitch : defaultTtsPitch;
     utterance.voice = selectVoice(language);
     utterance.onend = (): void => resolve();
     utterance.onerror = (): void => reject(new Error("Could not play the question audio. Please try replaying it."));
@@ -177,6 +187,12 @@ const collectTranscript = (event: SpeechRecognitionEvent): { readonly finalText:
 const selectVoice = (language: InterviewLanguage): SpeechSynthesisVoice | null => {
   const targetLanguage = speechLanguageByCode[language].toLowerCase();
   const voices = window.speechSynthesis.getVoices();
+  const configuredVoice = findConfiguredVoice(voices, ttsVoiceNameByLanguage[language]);
+
+  if (configuredVoice !== null) {
+    return configuredVoice;
+  }
+
   const exactVoice = voices.find((voice: SpeechSynthesisVoice): boolean => {
     return voice.lang.toLowerCase() === targetLanguage && isMicrosoftVoice(voice);
   });
@@ -208,6 +224,16 @@ const selectVoice = (language: InterviewLanguage): SpeechSynthesisVoice | null =
   return voices.find((voice: SpeechSynthesisVoice): boolean => voice.lang.toLowerCase().startsWith(languagePrefix)) ?? null;
 };
 
+const findConfiguredVoice = (voices: readonly SpeechSynthesisVoice[], voiceName: string): SpeechSynthesisVoice | null => {
+  const configuredVoiceName = voiceName.trim().toLowerCase();
+
+  if (configuredVoiceName.length === 0) {
+    return null;
+  }
+
+  return voices.find((voice: SpeechSynthesisVoice): boolean => voice.name.toLowerCase() === configuredVoiceName) ?? null;
+};
+
 const isMicrosoftVoice = (voice: SpeechSynthesisVoice): boolean => {
   return voice.name.toLowerCase().includes("microsoft");
 };
@@ -216,3 +242,14 @@ const getSpeechRecognitionConstructor = (): SpeechRecognitionConstructor | null 
   const speechWindow = window as SpeechWindow;
   return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
 };
+
+function getEnvValue(key: string): string {
+  const environment = import.meta.env as Record<string, unknown>;
+  const value = environment[key];
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value;
+}
