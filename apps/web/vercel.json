@@ -1,6 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd ../.. && npm install && npm run build -w @preptalk/web",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build -w @preptalk/web",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
