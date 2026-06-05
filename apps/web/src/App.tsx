@@ -478,7 +478,7 @@ const SetupScreen = (props: SetupScreenProps) => (
       </div>
     </header>
 
-    <div className="grid flex-1 items-center gap-8 py-8 lg:grid-cols-[0.9fr_1.1fr]">
+    <div className="grid flex-1 items-center gap-8 py-8 grid-cols-1 lg:grid-cols-[0.9fr_1.1fr]">
       <div className="space-y-6">
         <div className="max-w-xl space-y-4">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">Practice interview</p>
@@ -490,7 +490,7 @@ const SetupScreen = (props: SetupScreenProps) => (
           </p>
         </div>
 
-        <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
+        <div className="grid gap-3 grid-cols-3 sm:grid-cols-3">
           <Metric label="Voice" value="Listen and speak" />
           <Metric label="Feedback" value="After each answer" />
           <Metric label="Review" value="End summary" />
@@ -531,6 +531,7 @@ const SetupScreen = (props: SetupScreenProps) => (
               placeholder="Example: Alex Nguyen"
               value={props.candidateName}
               onChange={(event) => props.onCandidateNameChange(event.target.value)}
+              autoComplete="name"
             />
           </label>
 
@@ -575,7 +576,7 @@ const SetupScreen = (props: SetupScreenProps) => (
 
         <ErrorBanner message={props.errorMessage} />
 
-        <button className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-650 px-5 py-3 text-base font-semibold text-white transition hover:bg-cyan-500" type="submit">
+        <button className="mt-6 inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-lg bg-cyan-650 px-5 py-3 text-base font-semibold text-white transition hover:bg-cyan-500 active:scale-[0.97]" type="submit">
           Start interview
           <ArrowRight size={18} aria-hidden="true" />
         </button>
@@ -605,7 +606,7 @@ const ReadinessScreen = (props: ReadinessScreenProps) => (
         </div>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+      <div className="mt-6 grid gap-3 grid-cols-1 sm:grid-cols-3">
         <ReadinessItem title="Headphones" text="Use headphones for the best voice experience." />
         <ReadinessItem title="Microphone" text="Allow microphone access when prompted." />
         <ReadinessItem title="Browser" text="Chrome or Edge is recommended for voice input." />
@@ -619,7 +620,7 @@ const ReadinessScreen = (props: ReadinessScreenProps) => (
           Back
         </button>
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-650 px-5 py-3 font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-slate-600"
+          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-cyan-650 px-5 py-3 font-semibold text-white hover:bg-cyan-500 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-600"
           type="button"
           disabled={props.workStatus === "starting"}
           onClick={props.onConfirm}
@@ -657,21 +658,21 @@ type InterviewScreenProps = {
 
 const InterviewScreen = (props: InterviewScreenProps) => (
   <section className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
-    <header className="flex flex-col gap-4 border-b border-line pb-4 md:flex-row md:items-center md:justify-between">
+    <header className="flex flex-col gap-3 border-b border-line pb-4 md:flex-row md:items-center md:justify-between">
       <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-lg bg-cyan-650 text-white">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-cyan-650 text-white">
           <Brain size={22} aria-hidden="true" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">Live interview</p>
-          <h1 className="text-xl font-semibold text-ink">{props.session.role}</h1>
+          <h1 className="text-xl font-semibold text-ink truncate">{props.session.role}</h1>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <Badge>{props.session.candidateName}</Badge>
         <Badge>{languageLabels[props.session.language]}</Badge>
-        <Badge>Question {props.session.currentQuestionNumber}/{props.session.maxQuestions}</Badge>
-        <button className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 font-semibold text-slate-200 hover:bg-slate-800" type="button" onClick={props.onReset}>
+        <Badge>Q {props.session.currentQuestionNumber}/{props.session.maxQuestions}</Badge>
+        <button className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 font-semibold text-slate-200 hover:bg-slate-800 active:scale-[0.97]" type="button" onClick={props.onReset}>
           <Trash2 size={16} aria-hidden="true" />
           Reset
         </button>
@@ -679,12 +680,12 @@ const InterviewScreen = (props: InterviewScreenProps) => (
     </header>
 
     <div className="grid flex-1 gap-5 py-5 lg:grid-cols-[0.8fr_1.2fr]">
-      <aside className="space-y-4">
+      <aside className="space-y-4 order-2 lg:order-1">
         <section className="rounded-lg border border-line bg-panel p-5 shadow-soft">
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-ink">Current question</h2>
             <button
-              className="inline-flex size-10 items-center justify-center rounded-lg border border-line text-cyan-300 hover:bg-cyan-950/35 disabled:cursor-not-allowed disabled:text-slate-600"
+              className="inline-flex size-11 items-center justify-center rounded-lg border border-line text-cyan-300 hover:bg-cyan-950/35 disabled:cursor-not-allowed disabled:text-slate-600"
               type="button"
               title="Replay question"
               disabled={props.isBusy}
@@ -712,7 +713,7 @@ const InterviewScreen = (props: InterviewScreenProps) => (
         </section>
       </aside>
 
-      <section className="space-y-4">
+      <section className="space-y-4 order-1 lg:order-2">
         <div className="rounded-lg border border-line bg-panel p-5 shadow-soft">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -806,17 +807,18 @@ type InterviewActionsProps = {
 const InterviewActions = (props: InterviewActionsProps) => (
   <div className="grid grid-cols-2 gap-2 sm:flex">
     <button
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-slate-900 px-3 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
+      className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-line bg-slate-900 px-3 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 active:scale-[0.97] disabled:cursor-not-allowed disabled:text-slate-600"
       type="button"
       disabled={!props.canUseInterviewActions || props.isBusy}
       onClick={props.onSuggest}
     >
       <Lightbulb size={17} aria-hidden="true" />
-      Suggest
+      <span className="hidden sm:inline">Suggest</span>
+      <span className="sm:hidden">Hint</span>
     </button>
     {props.workStatus === "recording" ? (
       <button
-        className="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 py-3 text-sm font-semibold text-white hover:bg-rose-500"
+        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 py-3 text-sm font-semibold text-white hover:bg-rose-500 active:scale-[0.97]"
         type="button"
         onClick={props.onStopRecording}
       >
@@ -825,7 +827,7 @@ const InterviewActions = (props: InterviewActionsProps) => (
       </button>
     ) : (
       <button
-        className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-650 px-3 py-3 text-sm font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-slate-600"
+        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-cyan-650 px-3 py-3 text-sm font-semibold text-white hover:bg-cyan-500 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-600"
         type="button"
         disabled={!props.canUseInterviewActions || props.isBusy}
         onClick={props.onStartRecording}
@@ -835,16 +837,16 @@ const InterviewActions = (props: InterviewActionsProps) => (
       </button>
     )}
     <button
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-slate-900 px-3 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
+      className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-line bg-slate-900 px-3 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 active:scale-[0.97] disabled:cursor-not-allowed disabled:text-slate-600"
       type="button"
       disabled={!props.canUseInterviewActions || props.isBusy || props.workStatus === "recording"}
       onClick={props.onRetry}
     >
       <RotateCcw size={17} aria-hidden="true" />
-      Retry
+      <span className="hidden sm:inline">Retry</span>
     </button>
     <button
-      className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-650 px-3 py-3 text-sm font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-slate-600"
+      className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-cyan-650 px-3 py-3 text-sm font-semibold text-white hover:bg-cyan-500 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-600"
       type="button"
       disabled={!props.canUseInterviewActions || !props.canAdvance || props.isBusy || props.workStatus === "recording"}
       onClick={props.pendingNextQuestion === null ? props.onFinish : props.onNextQuestion}
@@ -862,7 +864,7 @@ type FeedbackPanelProps = {
 const FeedbackPanel = (props: FeedbackPanelProps) => (
   <div className="space-y-4">
     <section className="rounded-lg border border-line bg-panel p-5 shadow-soft">
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">What you said</h3>
           <p className="mt-3 whitespace-pre-wrap rounded-lg border border-line bg-slate-950/70 p-4 leading-7 text-slate-200">
@@ -884,20 +886,20 @@ const FeedbackPanel = (props: FeedbackPanelProps) => (
 
     <section className="rounded-lg border border-line bg-panel p-5">
       <h3 className="text-lg font-semibold text-ink">Score</h3>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {scoreEntries(props.turn.feedback.score).map(([key, value]) => (
           <ScoreMeter key={key} label={scoreLabels[key]} value={value} />
         ))}
       </div>
     </section>
 
-    <section className="grid gap-4 lg:grid-cols-3">
+    <section className="grid gap-4 grid-cols-1 md:grid-cols-3">
       <FeedbackList title="Language" items={props.turn.feedback.grammarFeedback} />
       <FeedbackList title="Content" items={props.turn.feedback.contentFeedback} />
       <FeedbackList title="Pronunciation hints" items={props.turn.feedback.pronunciationHints} />
     </section>
 
-    <section className="grid gap-4 md:grid-cols-2">
+    <section className="grid gap-4 grid-cols-1 md:grid-cols-2">
       <FeedbackList title="Strengths" items={props.turn.feedback.strengths} />
       <FeedbackList title="Practice next" items={props.turn.feedback.improvements} />
     </section>
@@ -910,7 +912,7 @@ const FeedbackPanel = (props: FeedbackPanelProps) => (
             <div className="rounded-lg border border-line p-4" key={`${issue.type}-${issue.originalText}-${issue.suggestedText}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge>{issue.type.replace("_", " ")}</Badge>
-                <Badge>{issue.severity}</Badge>
+                <Badge className={issue.severity === "high" ? "border-rose-400/40 bg-rose-950/40 text-rose-200" : issue.severity === "medium" ? "border-amber-400/40 bg-amber-950/40 text-amber-200" : "border-slate-400/40 bg-slate-900 text-slate-300"}>{issue.severity}</Badge>
               </div>
               <p className="mt-3 text-sm text-slate-300">
                 <span className="font-semibold text-rose-300">{issue.originalText}</span>
@@ -944,7 +946,7 @@ const SummaryScreen = (props: SummaryScreenProps) => {
           <h1 className="mt-1 text-3xl font-semibold text-ink">{props.session.role}</h1>
           <p className="mt-2 text-slate-400">{props.session.candidateName} · {languageLabels[props.session.language]}</p>
         </div>
-        <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-650 px-5 py-3 font-semibold text-white hover:bg-cyan-500" type="button" onClick={props.onReset}>
+        <button className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-cyan-650 px-5 py-3 font-semibold text-white hover:bg-cyan-500 active:scale-[0.97]" type="button" onClick={props.onReset}>
           New practice
           <Play size={17} aria-hidden="true" />
         </button>
@@ -952,7 +954,7 @@ const SummaryScreen = (props: SummaryScreenProps) => {
 
       {hasAnswers ? (
         <>
-          <div className="grid gap-5 py-6 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="grid gap-5 py-6 grid-cols-1 lg:grid-cols-[0.8fr_1.2fr]">
             <section className="rounded-lg border border-line bg-panel p-5 shadow-soft">
               <h2 className="text-lg font-semibold text-ink">Average score</h2>
               <div className="mt-4 space-y-3">
@@ -1061,10 +1063,11 @@ const ReadinessItem = (props: ReadinessItemProps) => (
 
 type BadgeProps = {
   readonly children: ReactNode;
+  readonly className?: string;
 };
 
 const Badge = (props: BadgeProps) => (
-  <span className="rounded-lg border border-line bg-slate-900 px-3 py-1.5 text-sm font-medium text-slate-200">
+  <span className={`rounded-lg border border-line bg-slate-900 px-3 py-1.5 text-sm font-medium text-slate-200 ${props.className ?? ""}`}>
     {props.children}
   </span>
 );
