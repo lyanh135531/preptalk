@@ -71,20 +71,19 @@ export const suggestAnswerJsonSchema: JsonSchema = {
 export const answerFeedbackJsonSchema: JsonSchema = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "correctedAnswer",
-    "correctionSpans",
-    "issues",
-    "grammarFeedback",
-    "contentFeedback",
-    "pronunciationHints",
-    "strengths",
-    "improvements",
-    "score",
-    "decision",
-    "decisionReason",
-    "nextQuestion"
-  ],
+    required: [
+      "correctedAnswer",
+      "correctionSpans",
+      "issues",
+      "grammarFeedback",
+      "contentFeedback",
+      "pronunciationHints",
+      "strengths",
+      "improvements",
+      "score",
+      "decision",
+      "decisionReason"
+    ],
   properties: {
     correctedAnswer: stringSchema,
     correctionSpans: {
@@ -197,14 +196,6 @@ export const answerFeedbackJsonSchema: JsonSchema = {
         "end"
       ]
     },
-    decisionReason: stringSchema,
-    nextQuestion: {
-      anyOf: [
-        questionJsonSchema,
-        {
-          type: "null"
-        }
-      ]
-    }
+    decisionReason: stringSchema
   }
 };

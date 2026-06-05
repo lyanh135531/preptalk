@@ -151,8 +151,17 @@ export const answerPayloadSchema = z.object({
 
 export const answerInterviewResponseSchema = z.object({
   session: interviewSessionSchema,
-  turn: interviewTurnSchema,
-  nextQuestion: questionSchema.nullable()
+  turn: interviewTurnSchema
+});
+
+export const nextQuestionRequestSchema = z.object({
+  session: interviewSessionSchema,
+  history: z.array(interviewTurnSchema).max(12)
+});
+
+export const nextQuestionResponseSchema = z.object({
+  session: interviewSessionSchema,
+  question: questionSchema.nullable()
 });
 
 export const storedInterviewSchema = z.object({
@@ -192,6 +201,8 @@ export type SuggestAnswerRequest = z.infer<typeof suggestAnswerRequestSchema>;
 export type SuggestAnswerResponse = z.infer<typeof suggestAnswerResponseSchema>;
 export type AnswerPayload = z.infer<typeof answerPayloadSchema>;
 export type AnswerInterviewResponse = z.infer<typeof answerInterviewResponseSchema>;
+export type NextQuestionRequest = z.infer<typeof nextQuestionRequestSchema>;
+export type NextQuestionResponse = z.infer<typeof nextQuestionResponseSchema>;
 export type StoredInterview = z.infer<typeof storedInterviewSchema>;
 export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
