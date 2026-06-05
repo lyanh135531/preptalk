@@ -36,7 +36,6 @@ import type { ActiveSpeechCapture } from "./lib/audio";
 import {
   ensureMicrophoneAccess,
   ensureSpeechRecognitionSupport,
-  ensureSpeechSynthesisSupport,
   speakText,
   startSpeechCapture,
   stopSpeech
@@ -159,7 +158,6 @@ export const App = () => {
 
     try {
       ensureSpeechRecognitionSupport();
-      ensureSpeechSynthesisSupport();
       await ensureMicrophoneAccess();
 
       const healthStatus = await getHealthStatus();
@@ -610,7 +608,7 @@ const ReadinessScreen = (props: ReadinessScreenProps) => (
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <ReadinessItem title="Headphones" text="Use headphones for the best voice experience." />
         <ReadinessItem title="Microphone" text="Allow microphone access when prompted." />
-        <ReadinessItem title="Browser" text="Microsoft Edge is recommended for voice playback." />
+        <ReadinessItem title="Browser" text="Chrome or Edge is recommended for voice input." />
       </div>
 
       <ErrorBanner message={props.errorMessage} />

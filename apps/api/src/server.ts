@@ -13,6 +13,7 @@ import {
 } from "./errors.js";
 import { OpenRouterClient } from "./open-router-client.js";
 import { createInterviewRouter } from "./routes/interviews.js";
+import { createTtsRouter } from "./routes/tts.js";
 
 const openRouterClient = new OpenRouterClient(appConfig.openRouter);
 
@@ -37,6 +38,7 @@ export const createServer = () => {
     openRouterClient,
     maxQuestions: appConfig.interview.maxQuestions
   }));
+  app.use("/api/tts", createTtsRouter());
   app.use(errorHandler);
 
   return app;
