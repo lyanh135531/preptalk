@@ -50,27 +50,34 @@ export type ActiveSpeechCapture = {
 
 const speechLanguageByCode: Record<InterviewLanguage, string> = {
   en: "en-US",
-  vi: "vi-VN"
+  vi: "vi-VN",
 };
 
 const ttsVoiceNameByLanguage: Record<InterviewLanguage, string> = {
   en: getEnvValue("VITE_TTS_EN_VOICE_NAME"),
-  vi: getEnvValue("VITE_TTS_VI_VOICE_NAME")
+  vi: getEnvValue("VITE_TTS_VI_VOICE_NAME"),
 };
 
 export const ensureSpeechRecognitionSupport = (): void => {
   if (getSpeechRecognitionConstructor() === null) {
-    throw new Error("Speech recognition is not available in this browser. Please use the latest Chrome or Edge.");
+    throw new Error(
+      "Speech recognition is not available in this browser. Please use the latest Chrome or Edge.",
+    );
   }
 };
 
 export const ensureMicrophoneAccess = async (): Promise<void> => {
-  if (navigator.mediaDevices === undefined || navigator.mediaDevices.getUserMedia === undefined) {
-    throw new Error("Microphone access is not available in this browser. Please use the latest Chrome or Edge.");
+  if (
+    navigator.mediaDevices === undefined ||
+    navigator.mediaDevices.getUserMedia === undefined
+  ) {
+    throw new Error(
+      "Microphone access is not available in this browser. Please use the latest Chrome or Edge.",
+    );
   }
 
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: true
+    audio: true,
   });
 
   for (const track of stream.getTracks()) {
@@ -78,11 +85,15 @@ export const ensureMicrophoneAccess = async (): Promise<void> => {
   }
 };
 
-export const startSpeechCapture = (language: InterviewLanguage): ActiveSpeechCapture => {
+export const startSpeechCapture = (
+  language: InterviewLanguage,
+): ActiveSpeechCapture => {
   const recognitionConstructor = getSpeechRecognitionConstructor();
 
   if (recognitionConstructor === null) {
-    throw new Error("Speech recognition is not available in this browser. Please use the latest Chrome or Edge.");
+    throw new Error(
+      "Speech recognition is not available in this browser. Please use the latest Chrome or Edge.",
+    );
   }
 
   const recognition = new recognitionConstructor();
@@ -108,31 +119,45 @@ export const startSpeechCapture = (language: InterviewLanguage): ActiveSpeechCap
   recognition.start();
 
   return {
-    stop: () => new Promise<SpeechCaptureResult>((resolve, reject): void => {
-      recognition.onend = (): void => {
-        if (recognitionError !== null && finalTranscript.trim().length === 0 && latestInterimTranscript.trim().length === 0) {
-          reject(new Error(`Speech recognition stopped: ${recognitionError}. Please try again.`));
-          return;
-        }
+    stop: () =>
+      new Promise<SpeechCaptureResult>((resolve, reject): void => {
+        recognition.onend = (): void => {
+          if (
+            recognitionError !== null &&
+            finalTranscript.trim().length === 0 &&
+            latestInterimTranscript.trim().length === 0
+          ) {
+            reject(
+              new Error(
+                `Speech recognition stopped: ${recognitionError}. Please try again.`,
+              ),
+            );
+            return;
+          }
 
-        resolve({
-          transcript: `${finalTranscript} ${latestInterimTranscript}`.trim(),
-          durationMs: Math.round(performance.now() - startedAt)
-        });
-      };
+          resolve({
+            transcript: `${finalTranscript} ${latestInterimTranscript}`.trim(),
+            durationMs: Math.round(performance.now() - startedAt),
+          });
+        };
 
-      recognition.stop();
-    })
+        recognition.stop();
+      }),
   };
 };
 
 let activeAudio: HTMLAudioElement | null = null;
 
-export const speakText = async (text: string, language: InterviewLanguage): Promise<void> => {
+export const speakText = async (
+  text: string,
+  language: InterviewLanguage,
+): Promise<void> => {
   stopSpeech();
 
   const voiceName = ttsVoiceNameByLanguage[language] || "";
-  const response = await fetch(`/api/tts?text=${encodeURIComponent(text)}&lang=${language}&voice=${encodeURIComponent(voiceName)}`);
+  const response = await fetch(
+    `/api/tts?text=${encodeURIComponent(text)}&lang=${language}&voice=${encodeURIComponent(voiceName)}`,
+  );
   if (!response.ok) {
     throw new Error(`Backend TTS failed with status ${response.status}`);
   }
@@ -162,7 +187,9 @@ export const speakText = async (text: string, language: InterviewLanguage): Prom
       if (activeAudio === audio) {
         activeAudio = null;
       }
-      reject(playError instanceof Error ? playError : new Error(String(playError)));
+      reject(
+        playError instanceof Error ? playError : new Error(String(playError)),
+      );
     });
   });
 };
@@ -174,11 +201,17 @@ export const stopSpeech = (): void => {
   }
 };
 
-const collectTranscript = (event: SpeechRecognitionEvent): { readonly finalText: string; readonly interimText: string } => {
+const collectTranscript = (
+  event: SpeechRecognitionEvent,
+): { readonly finalText: string; readonly interimText: string } => {
   const finalSegments: string[] = [];
   const interimSegments: string[] = [];
 
-  for (let index = event.resultIndex; index < event.results.length; index += 1) {
+  for (
+    let index = event.resultIndex;
+    index < event.results.length;
+    index += 1
+  ) {
     const result = event.results[index];
 
     if (result === undefined) {
@@ -194,14 +227,19 @@ const collectTranscript = (event: SpeechRecognitionEvent): { readonly finalText:
 
   return {
     finalText: finalSegments.join(" ").trim(),
-    interimText: interimSegments.join(" ").trim()
+    interimText: interimSegments.join(" ").trim(),
   };
 };
 
-const getSpeechRecognitionConstructor = (): SpeechRecognitionConstructor | null => {
-  const speechWindow = window as SpeechWindow;
-  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
-};
+const getSpeechRecognitionConstructor =
+  (): SpeechRecognitionConstructor | null => {
+    const speechWindow = window as SpeechWindow;
+    return (
+      speechWindow.SpeechRecognition ??
+      speechWindow.webkitSpeechRecognition ??
+      null
+    );
+  };
 
 function getEnvValue(key: string): string {
   const environment = import.meta.env as Record<string, unknown>;
@@ -213,4 +251,3 @@ function getEnvValue(key: string): string {
 
   return value;
 }
-

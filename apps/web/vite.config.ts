@@ -3,16 +3,14 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   envDir: "../../",
-  plugins: [
-    react()
-  ],
+  plugins: [react()],
   server: {
     port: 5173,
     proxy: {
       "/api": {
         target: "http://localhost:4000",
-        changeOrigin: true
-      }
-    }
-  }
+        changeOrigin: true,
+      },
+    },
+  },
 });
