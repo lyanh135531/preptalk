@@ -1,20 +1,47 @@
 import type {
   AnswerInterviewResponse,
   AnswerPayload,
+  ApiErrorCode,
   StartInterviewRequest,
   StartInterviewResponse,
   SuggestAnswerRequest,
   SuggestAnswerResponse
 } from "@preptalk/shared";
 import {
+  apiErrorResponseSchema,
   answerInterviewResponseSchema,
+  healthResponseSchema,
   startInterviewResponseSchema,
   suggestAnswerResponseSchema
 } from "@preptalk/shared";
 import type { ZodSchema } from "zod";
 
-type ApiErrorBody = {
-  readonly error?: string;
+export class ApiError extends Error {
+  public readonly code: ApiErrorCode;
+  public readonly requestId: string | null;
+
+  public constructor(message: string, code: ApiErrorCode, requestId: string | null) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+    this.requestId = requestId;
+  }
+}
+
+export type HealthStatus = {
+  readonly ok: boolean;
+  readonly openRouterConfigured: boolean;
+};
+
+export const getHealthStatus = async (): Promise<HealthStatus> => {
+  const response = await fetch("/api/health");
+
+  if (!response.ok) {
+    throw new ApiError("PrepTalk is not ready. Please restart the app and try again.", "SERVER_ERROR", null);
+  }
+
+  const json: unknown = await response.json();
+  return healthResponseSchema.parse(json);
 };
 
 export const startInterview = async (request: StartInterviewRequest): Promise<StartInterviewResponse> => {
@@ -54,10 +81,13 @@ const readApiError = async (response: Response): Promise<string> => {
   const contentType = response.headers.get("content-type");
 
   if (contentType !== null && contentType.includes("application/json")) {
-    const body = await response.json() as ApiErrorBody;
-    return body.error ?? `Request failed with status ${String(response.status)}`;
+    const body: unknown = await response.json();
+    const validation = apiErrorResponseSchema.safeParse(body);
+
+    if (validation.success) {
+      throw new ApiError(validation.data.error, validation.data.code, validation.data.requestId ?? null);
+    }
   }
 
-  const text = await response.text();
-  return text.length > 0 ? text : `Request failed with status ${String(response.status)}`;
+  return "PrepTalk could not complete the request. Please try again.";
 };

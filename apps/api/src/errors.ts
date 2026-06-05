@@ -1,12 +1,15 @@
+import type { ApiErrorCode } from "@preptalk/shared";
 import type { ZodError } from "zod";
 
 export class HttpRequestError extends Error {
   public readonly statusCode: number;
+  public readonly code: ApiErrorCode;
 
-  public constructor(statusCode: number, message: string) {
+  public constructor(statusCode: number, message: string, code: ApiErrorCode) {
     super(message);
     this.name = "HttpRequestError";
     this.statusCode = statusCode;
+    this.code = code;
   }
 }
 

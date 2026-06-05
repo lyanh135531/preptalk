@@ -41,6 +41,14 @@ export const interviewDecisionSchema = z.enum([
   "end"
 ]);
 
+export const apiErrorCodeSchema = z.enum([
+  "AI_UNAVAILABLE",
+  "CONFIG_MISSING",
+  "RATE_LIMITED",
+  "INVALID_INPUT",
+  "SERVER_ERROR"
+]);
+
 export const questionSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(8),
@@ -148,10 +156,22 @@ export const storedInterviewSchema = z.object({
   updatedAt: z.string().datetime()
 });
 
+export const apiErrorResponseSchema = z.object({
+  error: z.string().min(1),
+  code: apiErrorCodeSchema,
+  requestId: z.string().min(1).optional()
+});
+
+export const healthResponseSchema = z.object({
+  ok: z.boolean(),
+  openRouterConfigured: z.boolean()
+});
+
 export type InterviewLanguage = z.infer<typeof interviewLanguageSchema>;
 export type FeedbackSpanType = z.infer<typeof feedbackSpanTypeSchema>;
 export type FeedbackSeverity = z.infer<typeof feedbackSeveritySchema>;
 export type InterviewDecision = z.infer<typeof interviewDecisionSchema>;
+export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
 export type Question = z.infer<typeof questionSchema>;
 export type InterviewSession = z.infer<typeof interviewSessionSchema>;
 export type FeedbackSpan = z.infer<typeof feedbackSpanSchema>;
@@ -166,3 +186,5 @@ export type SuggestAnswerResponse = z.infer<typeof suggestAnswerResponseSchema>;
 export type AnswerPayload = z.infer<typeof answerPayloadSchema>;
 export type AnswerInterviewResponse = z.infer<typeof answerInterviewResponseSchema>;
 export type StoredInterview = z.infer<typeof storedInterviewSchema>;
+export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
+export type HealthResponse = z.infer<typeof healthResponseSchema>;

@@ -26,6 +26,7 @@ import {
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { ApiError, getHealthStatus } from "./api/client";
 import {
   startInterview,
   submitAnswer,
@@ -33,7 +34,9 @@ import {
 } from "./api/client";
 import type { ActiveSpeechCapture } from "./lib/audio";
 import {
+  ensureMicrophoneAccess,
   ensureSpeechRecognitionSupport,
+  ensureSpeechSynthesisSupport,
   speakText,
   startSpeechCapture,
   stopSpeech
@@ -88,8 +91,13 @@ export const App = () => {
   const [suggestedAnswer, setSuggestedAnswer] = useState<string | null>(null);
   const [speakingTips, setSpeakingTips] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [storedInterview, setStoredInterview] = useState<StoredInterview | null>(null);
   const activeSpeechCaptureRef = useRef<ActiveSpeechCapture | null>(null);
+
+  const stopCurrentPlayback = (): void => {
+    stopSpeech();
+  };
 
   useEffect((): (() => void) => {
     setStoredInterview(loadStoredInterview());
@@ -129,6 +137,7 @@ export const App = () => {
   const handleProfileSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     setErrorMessage(null);
+    setNoticeMessage(null);
 
     if (candidateName.trim().length === 0) {
       setErrorMessage("Please enter your name.");
@@ -145,10 +154,19 @@ export const App = () => {
 
   const handleConfirmReady = async (): Promise<void> => {
     setErrorMessage(null);
+    setNoticeMessage(null);
     setWorkStatus("starting");
 
     try {
       ensureSpeechRecognitionSupport();
+      ensureSpeechSynthesisSupport();
+      await ensureMicrophoneAccess();
+
+      const healthStatus = await getHealthStatus();
+
+      if (!healthStatus.openRouterConfigured) {
+        throw new ApiError("The AI interviewer is not configured. Please check your local setup and restart the app.", "CONFIG_MISSING", null);
+      }
 
       const response = await startInterview({
         candidateName: candidateName.trim(),
@@ -187,6 +205,7 @@ export const App = () => {
     }
 
     setErrorMessage(null);
+    setNoticeMessage(null);
     setWorkStatus("suggesting");
 
     try {
@@ -206,13 +225,14 @@ export const App = () => {
 
   const handleStartRecording = (): void => {
     setErrorMessage(null);
+    setNoticeMessage(null);
 
     try {
       if (session === null) {
         return;
       }
 
-      stopSpeech();
+      stopCurrentPlayback();
       activeSpeechCaptureRef.current = startSpeechCapture(session.language);
       setWorkStatus("recording");
     } catch (error: unknown) {
@@ -227,6 +247,7 @@ export const App = () => {
     }
 
     setErrorMessage(null);
+    setNoticeMessage(null);
 
     try {
       const speechCapture = await activeSpeechCaptureRef.current.stop();
@@ -269,6 +290,7 @@ export const App = () => {
     setPendingNextQuestion(null);
     setSuggestedAnswer(null);
     setSpeakingTips([]);
+    setNoticeMessage(null);
     persistInterview(session, currentQuestion, null, history);
   };
 
@@ -279,6 +301,7 @@ export const App = () => {
 
     if (pendingNextQuestion === null) {
       setStage("summary");
+      setNoticeMessage(null);
       persistInterview(session, null, null, history);
       return;
     }
@@ -287,6 +310,7 @@ export const App = () => {
     setPendingNextQuestion(null);
     setSuggestedAnswer(null);
     setSpeakingTips([]);
+    setNoticeMessage(null);
     persistInterview(session, pendingNextQuestion, null, history);
     await playQuestion(pendingNextQuestion.text, session.language);
   };
@@ -313,12 +337,13 @@ export const App = () => {
     }
     setSuggestedAnswer(null);
     setSpeakingTips([]);
+    setNoticeMessage(null);
     setStage(storedInterview.currentQuestion === null ? "summary" : "interview");
   };
 
   const handleResetInterview = (): void => {
     activeSpeechCaptureRef.current = null;
-    stopSpeech();
+    stopCurrentPlayback();
     clearStoredInterview();
     setStoredInterview(null);
     setSession(null);
@@ -328,19 +353,28 @@ export const App = () => {
     setSuggestedAnswer(null);
     setSpeakingTips([]);
     setErrorMessage(null);
+    setNoticeMessage(null);
     setWorkStatus("idle");
     setStage("setup");
   };
 
   const playQuestion = async (text: string, nextLanguage: InterviewLanguage): Promise<void> => {
     setErrorMessage(null);
+    setNoticeMessage(null);
     setWorkStatus("playing");
+    stopCurrentPlayback();
 
     try {
       await speakText(text, nextLanguage);
       setWorkStatus("idle");
     } catch (error: unknown) {
+      stopCurrentPlayback();
       setWorkStatus("idle");
+      if (isVoicePlaybackError(error)) {
+        setNoticeMessage("Voice playback is unavailable. You can continue by reading the question on screen.");
+        return;
+      }
+
       setErrorMessage(getErrorMessage(error));
     }
   };
@@ -367,6 +401,7 @@ export const App = () => {
       {stage === "readiness" ? (
         <ReadinessScreen
           errorMessage={errorMessage}
+          noticeMessage={noticeMessage}
           workStatus={workStatus}
           onBack={() => {
             setStage("setup");
@@ -386,6 +421,7 @@ export const App = () => {
           lastTurn={lastTurn}
           pendingNextQuestion={pendingNextQuestion}
           session={session}
+          noticeMessage={noticeMessage}
           speakingTips={speakingTips}
           suggestedAnswer={suggestedAnswer}
           workStatus={workStatus}
@@ -449,10 +485,10 @@ const SetupScreen = (props: SetupScreenProps) => (
         <div className="max-w-xl space-y-4">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">Practice interview</p>
           <h2 className="text-4xl font-semibold leading-tight text-ink sm:text-5xl">
-            Practice interviews out loud and get instant feedback.
+            Practice interviews with live feedback.
           </h2>
           <p className="text-lg leading-8 text-slate-300">
-            Choose a role, answer by voice, and let PrepTalk review your response, improve your wording, and ask the next question naturally.
+            Choose a role, answer by voice, and improve after every response.
           </p>
         </div>
 
@@ -467,7 +503,7 @@ const SetupScreen = (props: SetupScreenProps) => (
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-2xl font-semibold text-ink">Start practice</h3>
-            <p className="mt-1 text-sm text-slate-300">Enter a few details so AI can create relevant interview questions.</p>
+            <p className="mt-1 text-sm text-slate-300">Set up your interview session.</p>
           </div>
           <Headphones className="text-cyan-300" size={28} aria-hidden="true" />
         </div>
@@ -552,6 +588,7 @@ const SetupScreen = (props: SetupScreenProps) => (
 
 type ReadinessScreenProps = {
   readonly errorMessage: string | null;
+  readonly noticeMessage: string | null;
   readonly workStatus: WorkStatus;
   readonly onBack: () => void;
   readonly onConfirm: () => Promise<void>;
@@ -566,17 +603,18 @@ const ReadinessScreen = (props: ReadinessScreenProps) => (
         </div>
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">Ready check</p>
-          <h2 className="text-2xl font-semibold text-ink">Use headphones and enable your microphone</h2>
+          <h2 className="text-2xl font-semibold text-ink">Get ready to listen and speak</h2>
         </div>
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <ReadinessItem title="Headphones" text="Prevents the question audio from being picked up by the microphone." />
-        <ReadinessItem title="Microphone" text="Your browser will ask for permission when you start answering." />
-        <ReadinessItem title="Quiet space" text="Speak clearly and avoid background noise." />
+        <ReadinessItem title="Headphones" text="Use headphones for the best voice experience." />
+        <ReadinessItem title="Microphone" text="Allow microphone access when prompted." />
+        <ReadinessItem title="Browser" text="Microsoft Edge is recommended for voice playback." />
       </div>
 
       <ErrorBanner message={props.errorMessage} />
+      <NoticeBanner message={props.noticeMessage} />
 
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button className="rounded-lg border border-line px-5 py-3 font-semibold text-slate-200 hover:bg-slate-800" type="button" onClick={props.onBack}>
@@ -605,6 +643,7 @@ type InterviewScreenProps = {
   readonly lastTurn: InterviewTurn | null | undefined;
   readonly pendingNextQuestion: Question | null;
   readonly session: InterviewSession;
+  readonly noticeMessage: string | null;
   readonly speakingTips: readonly string[];
   readonly suggestedAnswer: string | null;
   readonly workStatus: WorkStatus;
@@ -700,6 +739,7 @@ const InterviewScreen = (props: InterviewScreenProps) => (
           </div>
 
           <ErrorBanner message={props.errorMessage} />
+          <NoticeBanner message={props.noticeMessage} />
 
           {props.suggestedAnswer !== null ? (
             <div className="mt-5 rounded-lg border border-cyan-400/30 bg-cyan-950/35 p-4">
@@ -724,9 +764,9 @@ const InterviewScreen = (props: InterviewScreenProps) => (
         ) : (
           <div className="rounded-lg border border-dashed border-line bg-panel p-8 text-center">
             <Mic className="mx-auto text-slate-500" size={34} aria-hidden="true" />
-            <h3 className="mt-3 text-lg font-semibold text-ink">Answer the first question</h3>
+            <h3 className="mt-3 text-lg font-semibold text-ink">Ready for your answer</h3>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              After you speak, PrepTalk will show what it heard, improve your answer, and give detailed feedback.
+              Speak naturally, then review the feedback.
             </p>
           </div>
         )}
@@ -799,7 +839,7 @@ const InterviewActions = (props: InterviewActionsProps) => (
     <button
       className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-slate-900 px-3 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
       type="button"
-      disabled={!props.canUseInterviewActions || props.workStatus === "recording"}
+      disabled={!props.canUseInterviewActions || props.isBusy || props.workStatus === "recording"}
       onClick={props.onRetry}
     >
       <RotateCcw size={17} aria-hidden="true" />
@@ -808,7 +848,7 @@ const InterviewActions = (props: InterviewActionsProps) => (
     <button
       className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-650 px-3 py-3 text-sm font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-slate-600"
       type="button"
-      disabled={!props.canUseInterviewActions || !props.canAdvance || props.workStatus === "recording"}
+      disabled={!props.canUseInterviewActions || !props.canAdvance || props.isBusy || props.workStatus === "recording"}
       onClick={props.pendingNextQuestion === null ? props.onFinish : props.onNextQuestion}
     >
       {props.pendingNextQuestion === null ? "Finish" : "Next"}
@@ -859,6 +899,11 @@ const FeedbackPanel = (props: FeedbackPanelProps) => (
       <FeedbackList title="Pronunciation hints" items={props.turn.feedback.pronunciationHints} />
     </section>
 
+    <section className="grid gap-4 md:grid-cols-2">
+      <FeedbackList title="Strengths" items={props.turn.feedback.strengths} />
+      <FeedbackList title="Practice next" items={props.turn.feedback.improvements} />
+    </section>
+
     {props.turn.feedback.issues.length > 0 ? (
       <section className="rounded-lg border border-line bg-panel p-5">
         <h3 className="text-lg font-semibold text-ink">Detailed corrections</h3>
@@ -891,6 +936,7 @@ type SummaryScreenProps = {
 
 const SummaryScreen = (props: SummaryScreenProps) => {
   const summary = buildInterviewSummary(props.history);
+  const hasAnswers = props.history.length > 0;
 
   return (
     <section className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -906,32 +952,50 @@ const SummaryScreen = (props: SummaryScreenProps) => {
         </button>
       </header>
 
-      <div className="grid gap-5 py-6 lg:grid-cols-[0.8fr_1.2fr]">
-        <section className="rounded-lg border border-line bg-panel p-5 shadow-soft">
-          <h2 className="text-lg font-semibold text-ink">Average score</h2>
-          <div className="mt-4 space-y-3">
-            {scoreEntries(summary.averageScore).map(([key, value]) => (
-              <ScoreMeter key={key} label={scoreLabels[key]} value={value} />
+      {hasAnswers ? (
+        <>
+          <div className="grid gap-5 py-6 lg:grid-cols-[0.8fr_1.2fr]">
+            <section className="rounded-lg border border-line bg-panel p-5 shadow-soft">
+              <h2 className="text-lg font-semibold text-ink">Average score</h2>
+              <div className="mt-4 space-y-3">
+                {scoreEntries(summary.averageScore).map(([key, value]) => (
+                  <ScoreMeter key={key} label={scoreLabels[key]} value={value} />
+                ))}
+              </div>
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-2">
+              <FeedbackList title="Strengths" items={summary.strengths} />
+              <FeedbackList title="Practice next" items={summary.improvements} />
+            </section>
+          </div>
+
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold text-ink">Interview log</h2>
+            {props.history.map((turn: InterviewTurn, index: number) => (
+              <div className="rounded-lg border border-line bg-panel p-4" key={turn.id}>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Question {index + 1}</p>
+                <h3 className="mt-2 font-semibold text-ink">{turn.question.text}</h3>
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Transcript</p>
+                    <p className="mt-2 whitespace-pre-wrap rounded-lg border border-line bg-slate-950/70 p-3 text-sm leading-6 text-slate-300">{turn.transcript}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Improved answer</p>
+                    <p className="mt-2 whitespace-pre-wrap rounded-lg border border-line bg-slate-950/70 p-3 text-sm leading-6 text-slate-300">{turn.correctedAnswer}</p>
+                  </div>
+                </div>
+              </div>
             ))}
-          </div>
+          </section>
+        </>
+      ) : (
+        <section className="mt-6 rounded-lg border border-line bg-panel p-8 text-center">
+          <h2 className="text-xl font-semibold text-ink">No answers yet</h2>
+          <p className="mt-2 text-sm text-slate-400">Start a new practice session when you are ready.</p>
         </section>
-
-        <section className="grid gap-4 md:grid-cols-2">
-          <FeedbackList title="Strengths" items={summary.strengths} />
-          <FeedbackList title="Practice next" items={summary.improvements} />
-        </section>
-      </div>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-ink">Interview log</h2>
-        {props.history.map((turn: InterviewTurn, index: number) => (
-          <div className="rounded-lg border border-line bg-panel p-4" key={turn.id}>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Question {index + 1}</p>
-            <h3 className="mt-2 font-semibold text-ink">{turn.question.text}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-300">{turn.correctedAnswer}</p>
-          </div>
-        ))}
-      </section>
+      )}
     </section>
   );
 };
@@ -1023,6 +1087,22 @@ const ErrorBanner = (props: ErrorBannerProps) => {
   );
 };
 
+type NoticeBannerProps = {
+  readonly message: string | null;
+};
+
+const NoticeBanner = (props: NoticeBannerProps) => {
+  if (props.message === null) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-cyan-400/30 bg-cyan-950/35 px-4 py-3 text-sm leading-6 text-cyan-100">
+      {props.message}
+    </div>
+  );
+};
+
 const scoreEntries = (score: Score): Array<[keyof Score, number]> => [
   [
     "communication",
@@ -1071,11 +1151,47 @@ const statusText = (status: WorkStatus): string => {
 };
 
 const getErrorMessage = (error: unknown): string => {
+  if (error instanceof ApiError) {
+    return getApiErrorMessage(error);
+  }
+
+  if (error instanceof DOMException && error.name === "NotAllowedError") {
+    return "Microphone access was blocked. Please allow microphone access in your browser and try again.";
+  }
+
+  if (error instanceof DOMException && error.name === "NotFoundError") {
+    return "No microphone was found. Please connect a microphone and try again.";
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
 
   return "Something went wrong. Please try again.";
+};
+
+const getApiErrorMessage = (error: ApiError): string => {
+  if (error.code === "AI_UNAVAILABLE") {
+    return "The AI interviewer is unavailable right now. Please try again.";
+  }
+
+  if (error.code === "CONFIG_MISSING") {
+    return "A required service is not configured. Please check your local setup and restart the app.";
+  }
+
+  if (error.code === "RATE_LIMITED") {
+    return "The service is temporarily rate limited. Please wait a moment and try again.";
+  }
+
+  if (error.code === "INVALID_INPUT") {
+    return "Please check your input and try again.";
+  }
+
+  return error.message;
+};
+
+const isVoicePlaybackError = (error: unknown): boolean => {
+  return error instanceof Error && error.message.includes("Text-to-speech");
 };
 
 const isPredefinedRole = (role: string): boolean => {

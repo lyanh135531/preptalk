@@ -59,6 +59,26 @@ export const ensureSpeechRecognitionSupport = (): void => {
   }
 };
 
+export const ensureSpeechSynthesisSupport = (): void => {
+  if (!("speechSynthesis" in window)) {
+    throw new Error("Text-to-speech is not available in this browser. Please use Microsoft Edge.");
+  }
+};
+
+export const ensureMicrophoneAccess = async (): Promise<void> => {
+  if (navigator.mediaDevices === undefined || navigator.mediaDevices.getUserMedia === undefined) {
+    throw new Error("Microphone access is not available in this browser. Please use the latest Chrome or Edge.");
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: true
+  });
+
+  for (const track of stream.getTracks()) {
+    track.stop();
+  }
+};
+
 export const startSpeechCapture = (language: InterviewLanguage): ActiveSpeechCapture => {
   const recognitionConstructor = getSpeechRecognitionConstructor();
 
@@ -108,9 +128,7 @@ export const startSpeechCapture = (language: InterviewLanguage): ActiveSpeechCap
 };
 
 export const speakText = async (text: string, language: InterviewLanguage): Promise<void> => {
-  if (!("speechSynthesis" in window)) {
-    throw new Error("Text-to-speech is not available in this browser.");
-  }
+  ensureSpeechSynthesisSupport();
 
   window.speechSynthesis.cancel();
 
@@ -159,10 +177,18 @@ const collectTranscript = (event: SpeechRecognitionEvent): { readonly finalText:
 const selectVoice = (language: InterviewLanguage): SpeechSynthesisVoice | null => {
   const targetLanguage = speechLanguageByCode[language].toLowerCase();
   const voices = window.speechSynthesis.getVoices();
-  const exactVoice = voices.find((voice: SpeechSynthesisVoice): boolean => voice.lang.toLowerCase() === targetLanguage);
+  const exactVoice = voices.find((voice: SpeechSynthesisVoice): boolean => {
+    return voice.lang.toLowerCase() === targetLanguage && isMicrosoftVoice(voice);
+  });
 
   if (exactVoice !== undefined) {
     return exactVoice;
+  }
+
+  const sameLanguageVoice = voices.find((voice: SpeechSynthesisVoice): boolean => voice.lang.toLowerCase() === targetLanguage);
+
+  if (sameLanguageVoice !== undefined) {
+    return sameLanguageVoice;
   }
 
   const languagePrefix = targetLanguage.split("-")[0];
@@ -171,7 +197,19 @@ const selectVoice = (language: InterviewLanguage): SpeechSynthesisVoice | null =
     return null;
   }
 
+  const microsoftLanguageVoice = voices.find((voice: SpeechSynthesisVoice): boolean => {
+    return voice.lang.toLowerCase().startsWith(languagePrefix) && isMicrosoftVoice(voice);
+  });
+
+  if (microsoftLanguageVoice !== undefined) {
+    return microsoftLanguageVoice;
+  }
+
   return voices.find((voice: SpeechSynthesisVoice): boolean => voice.lang.toLowerCase().startsWith(languagePrefix)) ?? null;
+};
+
+const isMicrosoftVoice = (voice: SpeechSynthesisVoice): boolean => {
+  return voice.name.toLowerCase().includes("microsoft");
 };
 
 const getSpeechRecognitionConstructor = (): SpeechRecognitionConstructor | null => {

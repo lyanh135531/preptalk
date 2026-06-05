@@ -67,7 +67,7 @@ export const createInterviewRouter = (config: InterviewRouterConfig): Router => 
     const parsedBody = startInterviewRequestSchema.safeParse(request.body);
 
     if (!parsedBody.success) {
-      throw new HttpRequestError(400, parsedBody.error.message);
+      throw new HttpRequestError(400, parsedBody.error.message, "INVALID_INPUT");
     }
 
     const aiResponse = await config.openRouterClient.chatJson({
@@ -102,7 +102,7 @@ export const createInterviewRouter = (config: InterviewRouterConfig): Router => 
     const parsedBody = suggestAnswerRequestSchema.safeParse(request.body);
 
     if (!parsedBody.success) {
-      throw new HttpRequestError(400, parsedBody.error.message);
+      throw new HttpRequestError(400, parsedBody.error.message, "INVALID_INPUT");
     }
 
     const aiResponse = await config.openRouterClient.chatJson({
@@ -128,7 +128,7 @@ export const createInterviewRouter = (config: InterviewRouterConfig): Router => 
     const transcript = payload.transcript.trim();
 
     if (transcript.length === 0) {
-      throw new HttpRequestError(422, "No speech was detected. Please answer again and speak clearly.");
+      throw new HttpRequestError(422, "No speech was detected. Please answer again and speak clearly.", "INVALID_INPUT");
     }
 
     const aiResponse = await config.openRouterClient.chatJson({
@@ -191,7 +191,7 @@ const parseAnswerPayload = (request: Request) => {
   const validation = answerPayloadSchema.safeParse(request.body);
 
   if (!validation.success) {
-    throw new HttpRequestError(400, validation.error.message);
+    throw new HttpRequestError(400, validation.error.message, "INVALID_INPUT");
   }
 
   return validation.data;
