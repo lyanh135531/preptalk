@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { InterviewLanguage, InterviewSession, InterviewTurn, Question } from "@preptalk/shared";
 import { 
   ArrowRight, Brain, CircleStop, Lightbulb, 
@@ -292,7 +293,7 @@ const InterviewActions = (props: InterviewScreenProps) => (
   </div>
 );
 
-const Badge = ({ children }: { children: React.ReactNode }) => (
+const Badge = ({ children }: { children: ReactNode }) => (
   <span className="rounded-lg border border-line bg-slate-900/60 px-3 py-1.5 text-xs font-semibold text-slate-200">
     {children}
   </span>

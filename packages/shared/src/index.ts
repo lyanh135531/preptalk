@@ -71,10 +71,17 @@ export const feedbackSpanSchema = z.object({
   type: feedbackSpanTypeSchema
 });
 
+export const feedbackIssueTypeSchema = z.enum([
+  "grammar",
+  "spelling",
+  "word_choice",
+  "clarity",
+  "content_gap",
+  "strong_point"
+]);
+
 export const feedbackIssueSchema = z.object({
-  type: feedbackSpanTypeSchema.exclude([
-    "neutral"
-  ]),
+  type: feedbackIssueTypeSchema,
   originalText: z.string().min(1),
   suggestedText: z.string().min(1),
   explanation: z.string().min(1),

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle2, ChevronLeft, Headphones, Mic, ShieldAlert } from "lucide-react";
 
 type WorkStatus = "idle" | "starting" | "playing" | "suggesting" | "recording" | "submitting";
@@ -78,7 +79,7 @@ export const ReadinessScreen = (props: ReadinessScreenProps) => (
 );
 
 type ReadinessItemProps = {
-  readonly icon: React.ReactNode;
+  readonly icon: ReactNode;
   readonly title: string;
   readonly text: string;
 };
