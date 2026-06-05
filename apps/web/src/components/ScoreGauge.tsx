@@ -45,7 +45,7 @@ export const ScoreGauge = ({ label, value }: ScoreGaugeProps) => {
         {/* Track Circle */}
         <svg className="size-full -rotate-90" viewBox="0 0 100 100">
           <circle
-            className="stroke-slate-800"
+            className={`stroke-current ${bgColor}`}
             strokeWidth="8"
             fill="transparent"
             r={radius}
@@ -67,7 +67,7 @@ export const ScoreGauge = ({ label, value }: ScoreGaugeProps) => {
         </svg>
         {/* Percentage Label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold tracking-tight text-ink">
+          <span className={`text-xl font-bold tracking-tight ${textColor}`}>
             {value}
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
