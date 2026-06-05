@@ -4,7 +4,7 @@ import { z } from "zod";
 const CONFIG = {
   OPENROUTER_API_KEY: process.env["OPENROUTER_API_KEY"] ?? "",
   OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-  CHAT_MODEL: "openrouter/owl-alpha",
+  CHAT_MODEL: process.env["OPENROUTER_CHAT_MODEL"] ?? "nvidia/nemotron-3-super-120b-a12b:free",
   APP_TITLE: "PrepTalk",
 } as const;
 

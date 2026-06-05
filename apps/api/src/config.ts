@@ -13,13 +13,15 @@ loadEnv({
 const environmentSchema = z.object({
   OPENROUTER_API_KEY: z.string(),
   PORT: z.coerce.number().int().min(1).max(65535),
-  CLIENT_ORIGIN: z.string().url()
+  CLIENT_ORIGIN: z.string().url(),
+  OPENROUTER_CHAT_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free")
 });
 
 const parsedEnvironment = environmentSchema.safeParse({
   OPENROUTER_API_KEY: process.env["OPENROUTER_API_KEY"] ?? "",
   PORT: process.env["PORT"] ?? "4000",
-  CLIENT_ORIGIN: process.env["CLIENT_ORIGIN"] ?? "http://localhost:5173"
+  CLIENT_ORIGIN: process.env["CLIENT_ORIGIN"] ?? "http://localhost:5173",
+  OPENROUTER_CHAT_MODEL: process.env["OPENROUTER_CHAT_MODEL"]
 });
 
 if (!parsedEnvironment.success) {
@@ -32,7 +34,7 @@ export const appConfig = {
   openRouter: {
     apiKey: parsedEnvironment.data.OPENROUTER_API_KEY,
     baseUrl: "https://openrouter.ai/api/v1",
-    chatModel: "openrouter/owl-alpha",
+    chatModel: parsedEnvironment.data.OPENROUTER_CHAT_MODEL,
     appTitle: "PrepTalk"
   },
   interview: {
