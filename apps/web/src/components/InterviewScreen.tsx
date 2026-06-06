@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { InterviewLanguage, InterviewSession, InterviewTurn, Question } from "@preptalk/shared";
 import { 
-  ArrowRight, Brain, CircleStop, Lightbulb, 
+  ArrowRight, Award, Brain, CircleStop, Lightbulb, 
   Mic, RotateCcw, Trash2, Volume2 
 } from "lucide-react";
 import { AudioVisualizer } from "./AudioVisualizer";
@@ -21,6 +21,7 @@ type InterviewScreenProps = {
   readonly speakingTips: readonly string[];
   readonly suggestedAnswer: string | null;
   readonly workStatus: WorkStatus;
+  readonly onFinish: () => void;
   readonly onNextQuestion: () => Promise<void>;
   readonly onReplay: () => Promise<void>;
   readonly onReset: () => void;
@@ -37,35 +38,6 @@ const languageLabels: Record<InterviewLanguage, string> = {
 
 export const InterviewScreen = (props: InterviewScreenProps) => {
   const currentQNum = props.session.currentQuestionNumber;
-  const maxQs = props.session.maxQuestions;
-
-  // Generate question progress indicators
-  const stepIndicators = Array.from({ length: maxQs }, (_, i) => {
-    const stepNum = i + 1;
-    const isCompleted = stepNum < currentQNum;
-    const isActive = stepNum === currentQNum;
-    
-    let stateStyle = "bg-slate-800 border-slate-700 text-slate-500";
-    if (isCompleted) {
-      stateStyle = "bg-indigo-650/40 border-indigo-500/50 text-indigo-200";
-    } else if (isActive) {
-      stateStyle = "bg-cyan-650 border-cyan-400 text-white shadow-glow ring-2 ring-cyan-500/30";
-    }
-
-    return (
-      <div key={stepNum} className="flex items-center gap-1.5">
-        <span className={`flex size-7 items-center justify-center rounded-lg border text-xs font-bold transition-all duration-300 ${stateStyle}`}>
-          {stepNum}
-        </span>
-        {stepNum < maxQs && (
-          <span className={`h-0.5 w-4 sm:w-8 transition-colors duration-300 ${
-            stepNum < currentQNum ? "bg-indigo-500" : "bg-slate-800"
-          }`} />
-        )}
-      </div>
-    );
-  });
-
   return (
     <section className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
       {/* Top Banner Header */}
@@ -80,21 +52,16 @@ export const InterviewScreen = (props: InterviewScreenProps) => {
           </div>
         </div>
 
-        {/* Stepper Progress bar */}
-        <div className="flex items-center gap-1">
-          {stepIndicators}
-        </div>
-
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Badge>{props.session.candidateName}</Badge>
           <Badge>{languageLabels[props.session.language]}</Badge>
           <button 
-            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-slate-900/50 px-3 py-2 font-semibold text-slate-300 hover:bg-rose-950/20 hover:text-rose-300 hover:border-rose-900/50 active:scale-[0.97] transition-all" 
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-slate-900/50 px-3 py-2 font-semibold text-slate-300 hover:bg-cyan-950/20 hover:text-cyan-300 hover:border-cyan-900/50 active:scale-[0.97] transition-all" 
             type="button" 
-            onClick={props.onReset}
+            onClick={props.onFinish}
           >
-            <Trash2 size={14} aria-hidden="true" />
-            Quit Practice
+            <Award size={14} aria-hidden="true" className="text-cyan-400" />
+            Finish Session
           </button>
         </div>
       </header>
@@ -319,7 +286,7 @@ const InterviewActions = (props: InterviewScreenProps) => (
         </>
       ) : (
         <>
-          <span>{props.session.currentQuestionNumber >= props.session.maxQuestions ? "Finish Session" : "Next"}</span>
+          <span>Next</span>
           <ArrowRight size={15} aria-hidden="true" />
         </>
       )}

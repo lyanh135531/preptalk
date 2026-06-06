@@ -7,7 +7,7 @@ const CONFIG = {
   OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
   CHAT_MODEL: process.env["OPENROUTER_CHAT_MODEL"] ?? "nvidia/nemotron-3-super-120b-a12b:free",
   APP_TITLE: "PrepTalk",
-  MAX_QUESTIONS: 6,
+  MAX_QUESTIONS: 999999,
 } as const;
 
 async function fetchOpenRouter(

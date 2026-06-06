@@ -7,7 +7,7 @@ const CONFIG = {
   OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
   CHAT_MODEL: process.env["OPENROUTER_CHAT_MODEL"] ?? "nvidia/nemotron-3-super-120b-a12b:free",
   APP_TITLE: "PrepTalk",
-  MAX_QUESTIONS: 6,
+  MAX_QUESTIONS: 999999,
 } as const;
 
 async function fetchOpenRouter(
@@ -272,10 +272,7 @@ export default async function handler(
         "For pronunciation, provide transcript-based hints only. Do not claim phoneme-level scoring.",
         "Use correctionSpans to reconstruct the corrected answer in order. Use neutral spans for unchanged text.",
         "All score fields must be integer percentages from 0 to 100, not 0 to 5 ratings.",
-        "Decide whether the next question should be a follow-up, a new topic, or end.",
-        session.currentQuestionNumber >= session.maxQuestions
-          ? "This is the final allowed question. decision must be end."
-          : "If decision is end, it means the interview is completed.",
+        "Decide whether the next question should be a follow-up or a new topic. Do not choose end.",
         "Return only JSON.",
       ].join("\n"),
     },

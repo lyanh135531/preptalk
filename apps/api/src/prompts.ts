@@ -87,10 +87,7 @@ export const buildAnswerReviewMessages = (input: AnswerReviewPromptInput) => [
       "For pronunciation, provide transcript-based hints only. Do not claim phoneme-level scoring.",
       "Use correctionSpans to reconstruct the corrected answer in order. Use neutral spans for unchanged text.",
       "All score fields must be integer percentages from 0 to 100, not 0 to 5 ratings.",
-      "Decide whether the next question should be a follow-up, a new topic, or end.",
-      input.currentQuestionNumber >= input.maxQuestions
-        ? "This is the final allowed question. decision must be end."
-        : "If decision is end, it means the interview is completed.",
+      "Decide whether the next question should be a follow-up or a new topic. Do not choose end.",
       "Return only JSON."
     ].join("\n")
   }

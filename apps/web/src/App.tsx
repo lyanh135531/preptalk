@@ -254,15 +254,17 @@ export const App = () => {
     persistInterview(session, currentQuestion, null, history);
   };
 
-  const handleNextQuestion = async (): Promise<void> => {
+  const handleFinishInterview = (): void => {
     if (session === null) {
       return;
     }
+    setStage("summary");
+    setNoticeMessage(null);
+    persistInterview(session, null, null, history);
+  };
 
-    if (session.currentQuestionNumber >= session.maxQuestions) {
-      setStage("summary");
-      setNoticeMessage(null);
-      persistInterview(session, null, null, history);
+  const handleNextQuestion = async (): Promise<void> => {
+    if (session === null) {
       return;
     }
 
@@ -404,6 +406,7 @@ export const App = () => {
           speakingTips={speakingTips}
           suggestedAnswer={suggestedAnswer}
           workStatus={workStatus}
+          onFinish={handleFinishInterview}
           onNextQuestion={handleNextQuestion}
           onReplay={handleReplayQuestion}
           onReset={handleResetInterview}

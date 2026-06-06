@@ -38,6 +38,6 @@ export const appConfig = {
     appTitle: "PrepTalk"
   },
   interview: {
-    maxQuestions: 6
+    maxQuestions: 999999
   }
 } as const;
