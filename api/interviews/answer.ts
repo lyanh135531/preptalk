@@ -306,8 +306,6 @@ export default async function handler(
   res.setHeader("Connection", "keep-alive");
   res.setHeader("Transfer-Encoding", "chunked");
 
-  let streamedContent = "";
-
   const raw = await fetchOpenRouterStreaming(
     messages,
     "answer_review_response",
@@ -315,7 +313,6 @@ export default async function handler(
     0.4,
     800,
     (chunk: string) => {
-      streamedContent += chunk;
       res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
     }
   );
