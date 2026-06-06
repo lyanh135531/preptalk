@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { InterviewLanguage, InterviewSession, InterviewTurn, Question } from "@preptalk/shared";
 import { 
   ArrowRight, Award, Brain, CircleStop, Lightbulb, 
-  Mic, RotateCcw, Trash2, Volume2 
+  Mic, RotateCcw, Volume2 
 } from "lucide-react";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { FeedbackPanel } from "./FeedbackPanel";
