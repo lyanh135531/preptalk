@@ -232,9 +232,6 @@ export const App = () => {
         question: currentQuestion,
         history,
         transcript: speechCapture.transcript
-      }, () => {
-        // Show streaming indicator
-        setNoticeMessage("AI is evaluating your answer...");
       });
       const nextHistory = [
         ...history,

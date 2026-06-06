@@ -10,87 +10,6 @@ const CONFIG = {
   MAX_QUESTIONS: 999999,
 } as const;
 
-async function fetchOpenRouterStreaming(
-  messages: { role: string; content: string }[],
-  responseSchemaName: string,
-  responseJsonSchema: object,
-  temperature: number,
-  maxTokens: number,
-  onChunk: (text: string) => void
-): Promise<string | null> {
-  const body = {
-    model: CONFIG.CHAT_MODEL,
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-    stream: true,
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: responseSchemaName, strict: true, schema: responseJsonSchema },
-    },
-  };
-
-  try {
-    const res = await fetch(`${CONFIG.OPENROUTER_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://preptalk.vercel.app",
-        "X-OpenRouter-Title": CONFIG.APP_TITLE,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.warn("openrouter_stream_failed", { status: res.status, body: text });
-      return null;
-    }
-
-    const reader = res.body?.getReader();
-    if (!reader) return null;
-
-    const decoder = new TextDecoder();
-    let fullContent = "";
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith("data: ")) continue;
-        const data = trimmed.slice(6);
-        if (data === "[DONE]") continue;
-
-        try {
-          const parsed = JSON.parse(data) as {
-            choices?: Array<{ delta?: { content?: string } }>;
-          };
-          const chunk = parsed.choices?.[0]?.delta?.content;
-          if (chunk) {
-            fullContent += chunk;
-            onChunk(chunk);
-          }
-        } catch {
-          // Skip malformed chunks
-        }
-      }
-    }
-
-    return fullContent || null;
-  } catch (err) {
-    console.warn("openrouter_stream_error", { error: String(err) });
-    return null;
-  }
-}
-
 // ── Schemas ──
 
 const questionSchema = z.object({
@@ -323,26 +242,20 @@ export default async function handler(
     },
   ];
 
-  // Send streaming headers
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("Transfer-Encoding", "chunked");
-
-  const raw = await fetchOpenRouterStreaming(
+  // Use non-streaming for reliability (Vercel 10s timeout on free tier)
+  const raw = await fetchOpenRouter(
     messages,
     "answer_review_response",
     answerFeedbackJsonSchema,
     0.4,
-    800,
-    (chunk: string) => {
-      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
-    }
+    800
   );
 
   if (!raw) {
-    res.write(`data: ${JSON.stringify({ error: "The AI interviewer is unavailable right now. Please try again.", code: "AI_UNAVAILABLE" })}\n\n`);
-    res.end();
+    res.status(502).json({
+      error: "The AI interviewer is unavailable right now. Please try again.",
+      code: "AI_UNAVAILABLE",
+    });
     return;
   }
 
@@ -374,10 +287,11 @@ export default async function handler(
       answeredAt: new Date().toISOString(),
     };
 
-    res.write(`data: ${JSON.stringify({ done: true, session, turn })}\n\n`);
-    res.end();
+    res.json({ session, turn });
   } catch {
-    res.write(`data: ${JSON.stringify({ error: "The AI interviewer returned an invalid response. Please try again.", code: "AI_UNAVAILABLE" })}\n\n`);
-    res.end();
+    res.status(502).json({
+      error: "The AI interviewer returned an invalid response. Please try again.",
+      code: "AI_UNAVAILABLE",
+    });
   }
 }

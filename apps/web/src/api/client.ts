@@ -59,7 +59,8 @@ export const submitAnswer = async (
   payload: AnswerPayload,
   onProgress?: (chunk: string) => void
 ): Promise<AnswerInterviewResponse> => {
-  return sendJsonStreaming("/api/interviews/answer", payload, answerInterviewResponseSchema, onProgress);
+  if (onProgress) onProgress("");
+  return sendJson("/api/interviews/answer", payload, answerInterviewResponseSchema);
 };
 
 export const getNextQuestion = async (request: NextQuestionRequest): Promise<NextQuestionResponse> => {
@@ -85,77 +86,6 @@ const sendJson = async <TResponse>(
 
   const json: unknown = await response.json();
   return schema.parse(json);
-};
-
-const sendJsonStreaming = async <TResponse>(
-  url: string,
-  body: object,
-  schema: ZodSchema<TResponse>,
-  onProgress?: (chunk: string) => void
-): Promise<TResponse> => {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error("No response body");
-
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let finalData: TResponse | null = null;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith("data: ")) continue;
-      const data = trimmed.slice(6);
-      if (data === "[DONE]") continue;
-
-      try {
-        const parsed = JSON.parse(data) as Record<string, unknown>;
-
-        if (parsed["chunk"] && typeof parsed["chunk"] === "string") {
-          onProgress?.(parsed["chunk"]);
-        }
-
-        if (parsed["done"] === true && parsed["session"] && parsed["turn"]) {
-          finalData = schema.parse({ session: parsed["session"], turn: parsed["turn"] });
-        }
-
-        if (parsed["error"]) {
-          throw new ApiError(
-            String(parsed["error"]),
-            (parsed["code"] as ApiErrorCode) || "AI_UNAVAILABLE",
-            null
-          );
-        }
-      } catch (err) {
-        if (err instanceof ApiError) throw err;
-        // Skip malformed chunks
-      }
-    }
-  }
-
-  if (!finalData) {
-    throw new Error("PrepTalk could not complete the request. Please try again.");
-  }
-
-  return finalData;
 };
 
 const readApiError = async (response: Response): Promise<string> => {
