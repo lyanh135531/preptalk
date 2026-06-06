@@ -4,6 +4,7 @@ type StartPromptInput = {
   readonly candidateName: string;
   readonly language: InterviewLanguage;
   readonly role: string;
+  readonly yearsOfExperience: string;
 };
 
 type SuggestPromptInput = {
@@ -17,6 +18,7 @@ type AnswerReviewPromptInput = {
   readonly candidateName: string;
   readonly language: InterviewLanguage;
   readonly role: string;
+  readonly yearsOfExperience: string;
   readonly question: Question;
   readonly transcript: string;
   readonly history: readonly InterviewTurn[];
@@ -40,8 +42,9 @@ export const buildStartMessages = (input: StartPromptInput) => [
       `Candidate: ${input.candidateName}`,
       `Interview language: ${languageNameByCode[input.language]}`,
       `Target role: ${input.role}`,
+      `Years of experience: ${input.yearsOfExperience}`,
       "Create the first interview question.",
-      "The first question must be practical, role-specific, concise, and suitable for a spoken interview.",
+      `The first question must be practical, role-specific, concise, suitable for a spoken interview, and tailored to someone with ${input.yearsOfExperience} of experience.`,
       "Do not include greetings. Do not include explanations outside the JSON response."
     ].join("\n")
   }
@@ -78,11 +81,12 @@ export const buildAnswerReviewMessages = (input: AnswerReviewPromptInput) => [
       `Candidate: ${input.candidateName}`,
       `Interview language: ${languageNameByCode[input.language]}`,
       `Target role: ${input.role}`,
+      `Years of experience: ${input.yearsOfExperience}`,
       `Question ${String(input.currentQuestionNumber)} of ${String(input.maxQuestions)}: ${input.question.text}`,
       `Transcript from speech-to-text: ${input.transcript}`,
       "Previous interview history:",
       formatHistory(input.history),
-      "Review only what the candidate actually said in the transcript.",
+      `Review only what the candidate actually said in the transcript, evaluating them against expectations for someone with ${input.yearsOfExperience} of experience.`,
       "Correct spelling, grammar, wording, clarity, and role-content issues without inventing experience the candidate did not mention.",
       "For pronunciation, provide transcript-based hints only. Do not claim phoneme-level scoring.",
       "Use correctionSpans to reconstruct the corrected answer in order. Use neutral spans for unchanged text.",
@@ -96,6 +100,7 @@ export const buildAnswerReviewMessages = (input: AnswerReviewPromptInput) => [
 export const buildNextQuestionMessages = (input: {
   readonly language: InterviewLanguage;
   readonly role: string;
+  readonly yearsOfExperience: string;
   readonly history: readonly InterviewTurn[];
   readonly decision: string;
 }) => [
@@ -108,12 +113,13 @@ export const buildNextQuestionMessages = (input: {
     content: [
       `Interview language: ${languageNameByCode[input.language]}`,
       `Target role: ${input.role}`,
+      `Years of experience: ${input.yearsOfExperience}`,
       "Previous interview history:",
       formatHistory(input.history),
       `The previous question evaluation decided that the next step should be a: ${input.decision}`,
       input.decision === "follow_up"
-        ? "Create a follow-up question digging deeper into the candidate's last answer."
-        : "Create a new question on a different topic relevant to the target role.",
+        ? `Create a follow-up question digging deeper into the candidate's last answer, tailored to someone with ${input.yearsOfExperience} of experience.`
+        : `Create a new question on a different topic relevant to the target role, tailored to someone with ${input.yearsOfExperience} of experience.`,
       "The question must be practical, concise, and suitable for a spoken interview.",
       "Do not include greetings. Return only JSON matching the schema."
     ].join("\n")

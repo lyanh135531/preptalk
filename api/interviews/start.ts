@@ -75,6 +75,7 @@ const startInterviewRequestSchema = z.object({
   candidateName: z.string().trim().min(1).max(80),
   language: z.enum(["vi", "en"]),
   role: z.string().trim().min(2).max(120),
+  yearsOfExperience: z.string().default("0-1 years"),
 });
 
 const startAiResponseSchema = z.object({ question: questionSchema });
@@ -128,7 +129,7 @@ export default async function handler(
     return;
   }
 
-  const { candidateName, language, role } = parsed.data;
+  const { candidateName, language, role, yearsOfExperience } = parsed.data;
 
   const messages = [
     { role: "system", content: buildSystemInstruction(language) },
@@ -138,8 +139,9 @@ export default async function handler(
         `Candidate: ${candidateName}`,
         `Interview language: ${language === "vi" ? "Vietnamese" : "English"}`,
         `Target role: ${role}`,
+        `Years of experience: ${yearsOfExperience}`,
         "Create the first interview question.",
-        "The first question must be practical, role-specific, concise, and suitable for a spoken interview.",
+        `The first question must be practical, role-specific, concise, suitable for a spoken interview, and tailored to someone with ${yearsOfExperience} of experience.`,
         "Do not include greetings. Do not include explanations outside the JSON response.",
       ].join("\n"),
     },
@@ -173,6 +175,7 @@ export default async function handler(
       candidateName,
       language,
       role,
+      yearsOfExperience,
       createdAt: new Date().toISOString(),
       currentQuestionNumber: 1,
       maxQuestions: CONFIG.MAX_QUESTIONS,

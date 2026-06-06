@@ -49,6 +49,7 @@ export const App = () => {
   const [language, setLanguage] = useState<InterviewLanguage>("en");
   const [selectedRole, setSelectedRole] = useState<string>(defaultRole);
   const [customRole, setCustomRole] = useState<string>("");
+  const [yearsOfExperience, setYearsOfExperience] = useState<string>("0-1 years");
   const [session, setSession] = useState<InterviewSession | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [history, setHistory] = useState<InterviewTurn[]>([]);
@@ -134,7 +135,8 @@ export const App = () => {
       const response = await startInterview({
         candidateName: candidateName.trim(),
         language,
-        role: resolvedRole
+        role: resolvedRole,
+        yearsOfExperience
       });
 
       setSession(response.session);
@@ -311,6 +313,7 @@ export const App = () => {
     ]);
     setCandidateName(storedInterview.session.candidateName);
     setLanguage(storedInterview.session.language);
+    setYearsOfExperience(storedInterview.session.yearsOfExperience ?? "0-1 years");
     if (isPredefinedRole(storedInterview.session.role)) {
       setSelectedRole(storedInterview.session.role);
       setCustomRole("");
@@ -370,6 +373,7 @@ export const App = () => {
           errorMessage={errorMessage}
           language={language}
           selectedRole={selectedRole}
+          yearsOfExperience={yearsOfExperience}
           storedInterview={storedInterview}
           onCandidateNameChange={setCandidateName}
           onCustomRoleChange={setCustomRole}
@@ -377,6 +381,7 @@ export const App = () => {
           onProfileSubmit={handleProfileSubmit}
           onResume={handleResumeStoredInterview}
           onSelectedRoleChange={setSelectedRole}
+          onYearsOfExperienceChange={setYearsOfExperience}
         />
       ) : null}
 

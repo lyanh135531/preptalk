@@ -75,6 +75,7 @@ const interviewSessionSchema = z.object({
   candidateName: z.string().min(1),
   language: z.enum(["vi", "en"]),
   role: z.string().min(2),
+  yearsOfExperience: z.string().default("0-1 years"),
   createdAt: z.string().datetime(),
   currentQuestionNumber: z.number().int().min(1),
   maxQuestions: z.number().int().min(1),
@@ -219,12 +220,13 @@ export default async function handler(
       content: [
         `Interview language: ${languageName[session.language] || "English"}`,
         `Target role: ${session.role}`,
+        `Years of experience: ${session.yearsOfExperience}`,
         "Previous interview history:",
         formatHistory(history),
         `The previous question evaluation decided that the next step should be a: ${decision}`,
         decision === "follow_up"
-          ? "Create a follow-up question digging deeper into the candidate's last answer."
-          : "Create a new question on a different topic relevant to the target role.",
+          ? `Create a follow-up question digging deeper into the candidate's last answer, tailored to someone with ${session.yearsOfExperience} of experience.`
+          : `Create a new question on a different topic relevant to the target role, tailored to someone with ${session.yearsOfExperience} of experience.`,
         "The question must be practical, concise, and suitable for a spoken interview.",
         "Do not include greetings. Return only JSON matching the schema.",
       ].join("\n"),

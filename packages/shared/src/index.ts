@@ -61,6 +61,7 @@ export const interviewSessionSchema = z.object({
   candidateName: z.string().min(1),
   language: interviewLanguageSchema,
   role: z.string().min(2),
+  yearsOfExperience: z.string().default("0-1 years"),
   createdAt: z.string().datetime(),
   currentQuestionNumber: z.number().int().min(1),
   maxQuestions: z.number().int().min(1)
@@ -123,7 +124,8 @@ export const interviewTurnSchema = z.object({
 export const startInterviewRequestSchema = z.object({
   candidateName: z.string().trim().min(1).max(80),
   language: interviewLanguageSchema,
-  role: z.string().trim().min(2).max(120)
+  role: z.string().trim().min(2).max(120),
+  yearsOfExperience: z.string().default("0-1 years")
 });
 
 export const startInterviewResponseSchema = z.object({

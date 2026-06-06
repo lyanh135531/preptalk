@@ -77,6 +77,7 @@ export const createInterviewRouter = (config: InterviewRouterConfig): Router => 
       candidateName: parsedBody.data.candidateName,
       language: parsedBody.data.language,
       role: parsedBody.data.role,
+      yearsOfExperience: parsedBody.data.yearsOfExperience,
       createdAt: new Date().toISOString(),
       currentQuestionNumber: 1,
       maxQuestions: config.maxQuestions
@@ -129,6 +130,7 @@ export const createInterviewRouter = (config: InterviewRouterConfig): Router => 
         candidateName: payload.session.candidateName,
         language: payload.session.language,
         role: payload.session.role,
+        yearsOfExperience: payload.session.yearsOfExperience,
         question: payload.question,
         transcript,
         history: payload.history,
@@ -192,6 +194,7 @@ export const createInterviewRouter = (config: InterviewRouterConfig): Router => 
       messages: buildNextQuestionMessages({
         language: session.language,
         role: session.role,
+        yearsOfExperience: session.yearsOfExperience,
         history,
         decision: lastTurn !== null ? lastTurn.feedback.decision : "new_topic"
       }),

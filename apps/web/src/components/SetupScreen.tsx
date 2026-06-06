@@ -9,6 +9,7 @@ type SetupScreenProps = {
   readonly errorMessage: string | null;
   readonly language: InterviewLanguage;
   readonly selectedRole: string;
+  readonly yearsOfExperience: string;
   readonly storedInterview: StoredInterview | null;
   readonly onCandidateNameChange: (value: string) => void;
   readonly onCustomRoleChange: (value: string) => void;
@@ -16,6 +17,7 @@ type SetupScreenProps = {
   readonly onProfileSubmit: (event: FormEvent<HTMLFormElement>) => void;
   readonly onResume: () => void;
   readonly onSelectedRoleChange: (value: string) => void;
+  readonly onYearsOfExperienceChange: (value: string) => void;
 };
 
 const customRoleValue = "__custom_role__";
@@ -115,6 +117,22 @@ export const SetupScreen = (props: SetupScreenProps) => (
             >
               <option value="en">English (US)</option>
               <option value="vi">Vietnamese (Vietnam)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+              Years of Experience
+            </label>
+            <select
+              className="mt-2 w-full rounded-xl custom-input px-4 py-3 text-base text-ink shadow-sm"
+              value={props.yearsOfExperience}
+              onChange={(event) => props.onYearsOfExperienceChange(event.target.value)}
+            >
+              <option value="0-1 years">0-1 years (Junior / Entry-level)</option>
+              <option value="2-4 years">2-4 years (Mid-level)</option>
+              <option value="5-8 years">5-8 years (Senior)</option>
+              <option value="9+ years">9+ years (Lead / Principal)</option>
             </select>
           </div>
 
