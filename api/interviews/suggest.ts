@@ -138,12 +138,18 @@ const suggestAnswerJsonSchema = {
   additionalProperties: false,
   required: ["suggestedAnswer", "speakingTips"],
   properties: {
-    suggestedAnswer: { type: "string" },
+    suggestedAnswer: {
+      type: "string",
+      description: "A natural spoken answer (100-300 words) that a candidate would say aloud in a job interview. Must be conversational prose, NOT code or technical examples.",
+    },
     speakingTips: {
       type: "array",
       minItems: 2,
       maxItems: 5,
-      items: { type: "string" },
+      items: {
+        type: "string",
+        description: "A short tip to help the candidate deliver the answer confidently.",
+      },
     },
   },
 };
@@ -153,9 +159,10 @@ const suggestAnswerJsonSchema = {
 const languageName: Record<string, string> = { vi: "Vietnamese", en: "English" };
 
 const buildSystemInstruction = (lang: string) => [
-  "You are PrepTalk, a senior interview coach.",
+  "You are PrepTalk, an AI interview coach helping job candidates practice spoken interviews.",
   `Respond in ${languageName[lang] || "English"}.`,
-  "Return only JSON matching the schema. No markdown.",
+  "You help candidates prepare natural, conversational answers to interview questions.",
+  "Return only JSON matching the schema. No markdown, no code examples.",
 ].join("\n");
 
 const MAX_HISTORY_TURNS = 3;
@@ -195,11 +202,20 @@ export default async function handler(
     {
       role: "user",
       content: [
-        `Role: ${session.role}`,
-        `Question: ${question.text}`,
-        "Recent history:",
+        `Job role: ${session.role}`,
+        `Interview question: ${question.text}`,
+        "Recent conversation history:",
         formatHistory(history),
-        "Write a natural speakable answer. Keep it realistic. Return only JSON.",
+        "",
+        "Write a natural, conversational answer that a candidate would SAY ALOUD in a real interview.",
+        "The answer should be realistic, professional, and something a human would actually speak.",
+        "Do NOT write code. Do NOT write technical examples. Write a spoken response.",
+        "",
+        "Also provide 2-5 short speaking tips to help the candidate deliver this answer confidently.",
+        "",
+        "Return JSON with:",
+        "- suggestedAnswer: the spoken answer text (100-300 words)",
+        "- speakingTips: array of 2-5 short tip strings",
       ].join("\n"),
     },
   ];

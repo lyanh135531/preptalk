@@ -156,9 +156,10 @@ const nextQuestionJsonSchema = {
 const languageName: Record<string, string> = { vi: "Vietnamese", en: "English" };
 
 const buildSystemInstruction = (lang: string) => [
-  "You are PrepTalk, a senior interview coach.",
+  "You are PrepTalk, an AI interview coach helping job candidates practice spoken interviews.",
   `Respond in ${languageName[lang] || "English"}.`,
-  "Return only JSON matching the schema. No markdown.",
+  "Generate realistic interview questions that a human interviewer would ask.",
+  "Return only JSON matching the schema. No markdown, no code.",
 ].join("\n");
 
 const MAX_HISTORY_TURNS = 3;
@@ -212,14 +213,25 @@ export default async function handler(
     {
       role: "user",
       content: [
-        `Role: ${session.role} | Experience: ${session.yearsOfExperience}`,
-        "Recent history:",
+        `Target role: ${session.role}`,
+        `Candidate experience: ${session.yearsOfExperience}`,
+        "",
+        "Recent interview conversation:",
         formatHistory(history),
-        `Previous evaluation decided: ${decision}`,
+        "",
+        `The previous answer evaluation decided the next step should be: ${decision}`,
         decision === "follow_up"
-          ? "Create a follow-up question digging deeper into the last answer."
-          : "Create a new question on a different topic.",
-        "Practical, concise, spoken-friendly. Return only JSON.",
+          ? "Create a follow-up question that digs deeper into the candidate's last answer."
+          : "Create a new interview question on a different topic relevant to the role.",
+        "",
+        "The question must be:",
+        "- Something a human interviewer would actually say aloud",
+        "- Practical and role-specific",
+        "- Concise (1-2 sentences)",
+        "- Tailored to the candidate's experience level",
+        "",
+        "Do NOT write code. Do NOT write technical examples.",
+        "Return only JSON with the question.",
       ].join("\n"),
     },
   ];

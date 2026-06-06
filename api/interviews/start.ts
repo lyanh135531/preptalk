@@ -100,9 +100,10 @@ const startInterviewJsonSchema = {
 // ── Prompts ──
 
 const buildSystemInstruction = (lang: "vi" | "en") => [
-  "You are PrepTalk, a senior interview coach.",
+  "You are PrepTalk, an AI interview coach helping job candidates practice spoken interviews.",
   `Respond in ${lang === "vi" ? "Vietnamese" : "English"}.`,
-  "Return only JSON matching the schema. No markdown.",
+  "Generate realistic interview questions that a human interviewer would ask.",
+  "Return only JSON matching the schema. No markdown, no code.",
 ].join("\n");
 
 // ── Handler ──
@@ -129,9 +130,20 @@ export default async function handler(
     {
       role: "user",
       content: [
-        `Candidate: ${candidateName} | Role: ${role} | Experience: ${yearsOfExperience}`,
-        "Create the first interview question.",
-        "Practical, role-specific, concise. No greetings. Return only JSON.",
+        `Candidate: ${candidateName}`,
+        `Target role: ${role}`,
+        `Years of experience: ${yearsOfExperience}`,
+        "",
+        "Create the FIRST interview question for this candidate.",
+        "The question should be:",
+        "- Practical and role-specific",
+        "- Suitable for a spoken interview (something a human interviewer would ask)",
+        "- Concise (1-2 sentences)",
+        "- Tailored to the candidate's experience level",
+        "",
+        "Do NOT include greetings like 'Hello' or 'Welcome'.",
+        "Do NOT write code or technical examples.",
+        "Return only JSON with the question.",
       ].join("\n"),
     },
   ];

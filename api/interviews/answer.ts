@@ -240,9 +240,10 @@ const answerFeedbackJsonSchema = {
 const languageName: Record<string, string> = { vi: "Vietnamese", en: "English" };
 
 const buildSystemInstruction = (lang: string) => [
-  "You are PrepTalk, a senior interview coach.",
+  "You are PrepTalk, an AI interview coach evaluating a candidate's spoken interview answer.",
   `Respond in ${languageName[lang] || "English"}.`,
-  "Return only structured JSON matching the schema. No markdown, no explanations.",
+  "Evaluate the candidate's transcript for grammar, content, clarity, and relevance.",
+  "Return only structured JSON matching the schema. No markdown, no code, no explanations.",
 ].join("\n");
 
 const MAX_HISTORY_TURNS = 3;
@@ -289,12 +290,34 @@ export default async function handler(
     {
       role: "user",
       content: [
-        `Role: ${session.role} | Experience: ${session.yearsOfExperience}`,
-        `Q${session.currentQuestionNumber}: ${question.text}`,
-        `Transcript: ${trimmedTranscript}`,
-        "Recent history:",
+        `Job role: ${session.role}`,
+        `Candidate experience: ${session.yearsOfExperience}`,
+        `Interview question: ${question.text}`,
+        `Candidate's spoken answer (transcript): ${trimmedTranscript}`,
+        "",
+        "Recent interview history:",
         formatHistory(history),
-        "Evaluate the transcript. Correct grammar, content, clarity. Score 0-100 per field. Decide: follow_up or new_topic (never end).",
+        "",
+        "Evaluate the candidate's spoken answer on these criteria (0-100 each):",
+        "- communication: How clearly and fluently they expressed their ideas",
+        "- roleRelevance: How relevant the answer is to the target role",
+        "- structure: How well-organized the answer is",
+        "- languageAccuracy: Grammar and vocabulary correctness",
+        "- confidence: How confident and professional the tone is",
+        "",
+        "Also provide:",
+        "- correctedAnswer: A grammatically corrected version of their transcript",
+        "- correctionSpans: Mark specific corrections (grammar, spelling, word choice, clarity, content gaps, strong points)",
+        "- issues: List specific issues with severity (low/medium/high)",
+        "- grammarFeedback: Array of grammar feedback strings",
+        "- contentFeedback: Array of content feedback strings",
+        "- pronunciationHints: Array of pronunciation tips",
+        "- strengths: Array of what the candidate did well",
+        "- improvements: Array of areas to improve",
+        "- decision: 'follow_up' to ask more on this topic, or 'new_topic' to move on",
+        "- decisionReason: Brief explanation of the decision",
+        "",
+        "Do NOT write code. Do NOT write technical examples.",
         "Return only JSON.",
       ].join("\n"),
     },
