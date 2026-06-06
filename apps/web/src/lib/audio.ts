@@ -148,6 +148,12 @@ export const startSpeechCapture = (
 
 let activeAudio: HTMLAudioElement | null = null;
 
+const ttsCache = new Map<string, string>();
+
+const getCacheKey = (text: string, language: InterviewLanguage, voiceName: string): string => {
+  return `${language}:${voiceName}:${text}`;
+};
+
 export const speakText = async (
   text: string,
   language: InterviewLanguage,
@@ -155,6 +161,30 @@ export const speakText = async (
   stopSpeech();
 
   const voiceName = ttsVoiceNameByLanguage[language] || "";
+  const cacheKey = getCacheKey(text, language, voiceName);
+
+  // Check cache first
+  const cachedUrl = ttsCache.get(cacheKey);
+  if (cachedUrl) {
+    const audio = new Audio(cachedUrl);
+    activeAudio = audio;
+    await new Promise<void>((resolve, reject) => {
+      audio.onended = () => {
+        if (activeAudio === audio) activeAudio = null;
+        resolve();
+      };
+      audio.onerror = () => {
+        if (activeAudio === audio) activeAudio = null;
+        reject(new Error("Audio playback failed."));
+      };
+      audio.play().catch((playError: unknown) => {
+        if (activeAudio === audio) activeAudio = null;
+        reject(playError instanceof Error ? playError : new Error(String(playError)));
+      });
+    });
+    return;
+  }
+
   const response = await fetch(
     `/api/tts?text=${encodeURIComponent(text)}&lang=${language}&voice=${encodeURIComponent(voiceName)}`,
   );
@@ -164,32 +194,33 @@ export const speakText = async (
 
   const blob = await response.blob();
   const audioUrl = URL.createObjectURL(blob);
+
+  // Cache the URL (limit cache size to 20 entries)
+  if (ttsCache.size >= 20) {
+    const firstKey = ttsCache.keys().next().value;
+    if (firstKey) {
+      const oldUrl = ttsCache.get(firstKey);
+      if (oldUrl) URL.revokeObjectURL(oldUrl);
+      ttsCache.delete(firstKey);
+    }
+  }
+  ttsCache.set(cacheKey, audioUrl);
+
   const audio = new Audio(audioUrl);
   activeAudio = audio;
 
   await new Promise<void>((resolve, reject) => {
     audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      if (activeAudio === audio) {
-        activeAudio = null;
-      }
+      if (activeAudio === audio) activeAudio = null;
       resolve();
     };
     audio.onerror = () => {
-      URL.revokeObjectURL(audioUrl);
-      if (activeAudio === audio) {
-        activeAudio = null;
-      }
+      if (activeAudio === audio) activeAudio = null;
       reject(new Error("Audio playback failed or stream is invalid."));
     };
     audio.play().catch((playError: unknown) => {
-      URL.revokeObjectURL(audioUrl);
-      if (activeAudio === audio) {
-        activeAudio = null;
-      }
-      reject(
-        playError instanceof Error ? playError : new Error(String(playError)),
-      );
+      if (activeAudio === audio) activeAudio = null;
+      reject(playError instanceof Error ? playError : new Error(String(playError)));
     });
   });
 };

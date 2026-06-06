@@ -2,6 +2,7 @@ import type {
   InterviewLanguage,
   InterviewSession,
   InterviewTurn,
+  NextQuestionResponse,
   Question,
   StoredInterview
 } from "@preptalk/shared";
@@ -205,6 +206,10 @@ export const App = () => {
     }
   };
 
+  // Cache for prefetched next question
+  const prefetchedNextQuestionRef = useRef<NextQuestionResponse | null>(null);
+  const prefetchSessionRef = useRef<InterviewSession | null>(null);
+
   const handleStopRecording = async (): Promise<void> => {
     if (session === null || currentQuestion === null || activeSpeechCaptureRef.current === null) {
       return;
@@ -227,6 +232,9 @@ export const App = () => {
         question: currentQuestion,
         history,
         transcript: speechCapture.transcript
+      }, () => {
+        // Show streaming indicator
+        setNoticeMessage("AI is evaluating your answer...");
       });
       const nextHistory = [
         ...history,
@@ -238,6 +246,18 @@ export const App = () => {
       setSuggestedAnswer(null);
       setSpeakingTips([]);
       persistInterview(response.session, currentQuestion, null, nextHistory);
+
+      // Prefetch next question in background (fire-and-forget)
+      prefetchSessionRef.current = response.session;
+      getNextQuestion({
+        session: response.session,
+        history: nextHistory,
+      }).then((nextResponse) => {
+        prefetchedNextQuestionRef.current = nextResponse;
+      }).catch(() => {
+        // Silently fail — user will fetch on demand
+        prefetchedNextQuestionRef.current = null;
+      });
     } catch (error: unknown) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -272,6 +292,33 @@ export const App = () => {
 
     setErrorMessage(null);
     setNoticeMessage(null);
+
+    // Invalidate prefetch cache
+    const prefetched = prefetchedNextQuestionRef.current;
+    const prefetchedSession = prefetchSessionRef.current;
+    prefetchedNextQuestionRef.current = null;
+    prefetchSessionRef.current = null;
+
+    // Use prefetched result if it matches current session
+    if (prefetched !== null && prefetchedSession?.id === session.id) {
+      if (prefetched.question === null) {
+        setStage("summary");
+        setNoticeMessage(null);
+        persistInterview(prefetched.session, null, null, history);
+        return;
+      }
+
+      setSession(prefetched.session);
+      setCurrentQuestion(prefetched.question);
+      setSuggestedAnswer(null);
+      setSpeakingTips([]);
+      setNoticeMessage(null);
+      persistInterview(prefetched.session, prefetched.question, null, history);
+      await playQuestion(prefetched.question.text, prefetched.session.language);
+      return;
+    }
+
+    // Fallback: fetch on demand
     setWorkStatus("playing");
 
     try {

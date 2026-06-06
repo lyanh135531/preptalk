@@ -17,8 +17,7 @@ import {
   startInterviewResponseSchema,
   suggestAnswerRequestSchema,
   suggestAnswerResponseSchema,
-  nextQuestionRequestSchema,
-  nextQuestionResponseSchema
+  nextQuestionRequestSchema
 } from "@preptalk/shared";
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
@@ -234,11 +233,3 @@ const normalizeQuestion = (question: Question): Question => ({
   ...question,
   id: question.id.trim().length > 0 ? question.id : randomUUID()
 });
-
-const normalizeNullableQuestion = (question: Question | null): Question | null => {
-  if (question === null) {
-    return null;
-  }
-
-  return normalizeQuestion(question);
-};

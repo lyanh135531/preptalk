@@ -302,11 +302,11 @@ const Badge = ({ children }: { children: ReactNode }) => (
 
 const statusText = (status: WorkStatus): string => {
   switch (status) {
-    case "starting": return "AI Interviewer is generating question...";
-    case "playing": return "Robotic voice is speaking. Listen closely.";
-    case "suggesting": return "AI is constructing suggested answer...";
-    case "recording": return "Glow Mic active. Answer now, speak clearly.";
-    case "submitting": return "AI is analyzing your voice response...";
+    case "starting": return "Preparing your interview...";
+    case "playing": return "Playing question...";
+    case "suggesting": return "AI is writing a suggested answer...";
+    case "recording": return "Recording... Speak clearly.";
+    case "submitting": return "AI is evaluating your answer...";
     default: return "Ready. Click Answer to speak.";
   }
 };

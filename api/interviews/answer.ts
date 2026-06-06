@@ -10,56 +10,85 @@ const CONFIG = {
   MAX_QUESTIONS: 999999,
 } as const;
 
-async function fetchOpenRouter(
+async function fetchOpenRouterStreaming(
   messages: { role: string; content: string }[],
   responseSchemaName: string,
   responseJsonSchema: object,
   temperature: number,
-  maxTokens: number
+  maxTokens: number,
+  onChunk: (text: string) => void
 ): Promise<string | null> {
   const body = {
     model: CONFIG.CHAT_MODEL,
     messages,
     temperature,
     max_tokens: maxTokens,
+    stream: true,
     response_format: {
       type: "json_schema",
       json_schema: { name: responseSchemaName, strict: true, schema: responseJsonSchema },
     },
   };
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const res = await fetch(`${CONFIG.OPENROUTER_BASE_URL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://preptalk.vercel.app",
-          "X-OpenRouter-Title": CONFIG.APP_TITLE,
-        },
-        body: JSON.stringify(body),
-      });
+  try {
+    const res = await fetch(`${CONFIG.OPENROUTER_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://preptalk.vercel.app",
+        "X-OpenRouter-Title": CONFIG.APP_TITLE,
+      },
+      body: JSON.stringify(body),
+    });
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.warn("openrouter_failed", { status: res.status, attempt, body: text });
-        if (attempt === 2) return null;
-        continue;
-      }
-
-      const json = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const content = json.choices?.[0]?.message?.content;
-      if (content) return content;
-      if (attempt === 2) return null;
-    } catch (err) {
-      console.warn("openrouter_error", { attempt, error: String(err) });
-      if (attempt === 2) return null;
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn("openrouter_stream_failed", { status: res.status, body: text });
+      return null;
     }
+
+    const reader = res.body?.getReader();
+    if (!reader) return null;
+
+    const decoder = new TextDecoder();
+    let fullContent = "";
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+        const data = trimmed.slice(6);
+        if (data === "[DONE]") continue;
+
+        try {
+          const parsed = JSON.parse(data) as {
+            choices?: Array<{ delta?: { content?: string } }>;
+          };
+          const chunk = parsed.choices?.[0]?.delta?.content;
+          if (chunk) {
+            fullContent += chunk;
+            onChunk(chunk);
+          }
+        } catch {
+          // Skip malformed chunks
+        }
+      }
+    }
+
+    return fullContent || null;
+  } catch (err) {
+    console.warn("openrouter_stream_error", { error: String(err) });
+    return null;
   }
-  return null;
 }
 
 // ── Schemas ──
@@ -211,22 +240,21 @@ const answerFeedbackJsonSchema = {
 const languageName: Record<string, string> = { vi: "Vietnamese", en: "English" };
 
 const buildSystemInstruction = (lang: string) => [
-  "You are PrepTalk, a senior interview coach and professional interviewer.",
+  "You are PrepTalk, a senior interview coach.",
   `Respond in ${languageName[lang] || "English"}.`,
-  "Be direct, specific, and practical.",
-  "Use structured JSON exactly matching the requested schema.",
-  "Do not use markdown.",
-  "Do not include private chain-of-thought or hidden reasoning.",
+  "Return only structured JSON matching the schema. No markdown, no explanations.",
 ].join("\n");
+
+const MAX_HISTORY_TURNS = 3;
 
 const formatHistory = (history: Array<{ question: { text: string }; transcript: string; correctedAnswer: string; feedback: { improvements: string[] } }>): string => {
   if (history.length === 0) return "No previous answers.";
   return history
+    .slice(-MAX_HISTORY_TURNS)
     .map((turn, i) => [
-      `${i + 1}. Question: ${turn.question.text}`,
-      `Transcript: ${turn.transcript}`,
-      `Corrected answer: ${turn.correctedAnswer}`,
-      `Key improvements: ${turn.feedback.improvements.join("; ")}`,
+      `Q: ${turn.question.text}`,
+      `A: ${turn.transcript}`,
+      `Key improvements: ${turn.feedback.improvements.slice(0, 3).join("; ")}`,
     ].join("\n"))
     .join("\n\n");
 };
@@ -261,38 +289,40 @@ export default async function handler(
     {
       role: "user",
       content: [
-        `Candidate: ${session.candidateName}`,
-        `Interview language: ${languageName[session.language] || "English"}`,
-        `Target role: ${session.role}`,
-        `Years of experience: ${session.yearsOfExperience}`,
-        `Question ${session.currentQuestionNumber} of ${session.maxQuestions}: ${question.text}`,
-        `Transcript from speech-to-text: ${trimmedTranscript}`,
-        "Previous interview history:",
+        `Role: ${session.role} | Experience: ${session.yearsOfExperience}`,
+        `Q${session.currentQuestionNumber}: ${question.text}`,
+        `Transcript: ${trimmedTranscript}`,
+        "Recent history:",
         formatHistory(history),
-        `Review only what the candidate actually said in the transcript, evaluating them against expectations for someone with ${session.yearsOfExperience} of experience.`,
-        "Correct spelling, grammar, wording, clarity, and role-content issues without inventing experience the candidate did not mention.",
-        "For pronunciation, provide transcript-based hints only. Do not claim phoneme-level scoring.",
-        "Use correctionSpans to reconstruct the corrected answer in order. Use neutral spans for unchanged text.",
-        "All score fields must be integer percentages from 0 to 100, not 0 to 5 ratings.",
-        "Decide whether the next question should be a follow-up or a new topic. Do not choose end.",
+        "Evaluate the transcript. Correct grammar, content, clarity. Score 0-100 per field. Decide: follow_up or new_topic (never end).",
         "Return only JSON.",
       ].join("\n"),
     },
   ];
 
-  const raw = await fetchOpenRouter(
+  // Send streaming headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("Transfer-Encoding", "chunked");
+
+  let streamedContent = "";
+
+  const raw = await fetchOpenRouterStreaming(
     messages,
     "answer_review_response",
     answerFeedbackJsonSchema,
     0.4,
-    1800
+    800,
+    (chunk: string) => {
+      streamedContent += chunk;
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    }
   );
 
   if (!raw) {
-    res.status(502).json({
-      error: "The AI interviewer is unavailable right now. Please try again.",
-      code: "AI_UNAVAILABLE",
-    });
+    res.write(`data: ${JSON.stringify({ error: "The AI interviewer is unavailable right now. Please try again.", code: "AI_UNAVAILABLE" })}\n\n`);
+    res.end();
     return;
   }
 
@@ -324,11 +354,10 @@ export default async function handler(
       answeredAt: new Date().toISOString(),
     };
 
-    res.json({ session, turn });
+    res.write(`data: ${JSON.stringify({ done: true, session, turn })}\n\n`);
+    res.end();
   } catch {
-    res.status(502).json({
-      error: "The AI interviewer returned an invalid response. Please try again.",
-      code: "AI_UNAVAILABLE",
-    });
+    res.write(`data: ${JSON.stringify({ error: "The AI interviewer returned an invalid response. Please try again.", code: "AI_UNAVAILABLE" })}\n\n`);
+    res.end();
   }
 }

@@ -28,38 +28,34 @@ async function fetchOpenRouter(
     },
   };
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const res = await fetch(`${CONFIG.OPENROUTER_BASE_URL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://preptalk.vercel.app",
-          "X-OpenRouter-Title": CONFIG.APP_TITLE,
-        },
-        body: JSON.stringify(body),
-      });
+  try {
+    const res = await fetch(`${CONFIG.OPENROUTER_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://preptalk.vercel.app",
+        "X-OpenRouter-Title": CONFIG.APP_TITLE,
+      },
+      body: JSON.stringify(body),
+    });
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.warn("openrouter_failed", { status: res.status, attempt, body: text });
-        if (attempt === 2) return null;
-        continue;
-      }
-
-      const json = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const content = json.choices?.[0]?.message?.content;
-      if (content) return content;
-      if (attempt === 2) return null;
-    } catch (err) {
-      console.warn("openrouter_error", { attempt, error: String(err) });
-      if (attempt === 2) return null;
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn("openrouter_failed", { status: res.status, body: text });
+      return null;
     }
+
+    const json = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = json.choices?.[0]?.message?.content;
+    if (content) return content;
+    return null;
+  } catch (err) {
+    console.warn("openrouter_error", { error: String(err) });
+    return null;
   }
-  return null;
 }
 
 // ── Schemas ──
@@ -104,12 +100,9 @@ const startInterviewJsonSchema = {
 // ── Prompts ──
 
 const buildSystemInstruction = (lang: "vi" | "en") => [
-  "You are PrepTalk, a senior interview coach and professional interviewer.",
+  "You are PrepTalk, a senior interview coach.",
   `Respond in ${lang === "vi" ? "Vietnamese" : "English"}.`,
-  "Be direct, specific, and practical.",
-  "Use structured JSON exactly matching the requested schema.",
-  "Do not use markdown.",
-  "Do not include private chain-of-thought or hidden reasoning.",
+  "Return only JSON matching the schema. No markdown.",
 ].join("\n");
 
 // ── Handler ──
@@ -136,13 +129,9 @@ export default async function handler(
     {
       role: "user",
       content: [
-        `Candidate: ${candidateName}`,
-        `Interview language: ${language === "vi" ? "Vietnamese" : "English"}`,
-        `Target role: ${role}`,
-        `Years of experience: ${yearsOfExperience}`,
+        `Candidate: ${candidateName} | Role: ${role} | Experience: ${yearsOfExperience}`,
         "Create the first interview question.",
-        `The first question must be practical, role-specific, concise, suitable for a spoken interview, and tailored to someone with ${yearsOfExperience} of experience.`,
-        "Do not include greetings. Do not include explanations outside the JSON response.",
+        "Practical, role-specific, concise. No greetings. Return only JSON.",
       ].join("\n"),
     },
   ];
