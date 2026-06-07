@@ -160,55 +160,74 @@ export const speakText = async (
 ): Promise<void> => {
   stopSpeech();
 
+  // Try server-side TTS first (msedge-tts on local Windows dev server)
   const voiceName = ttsVoiceNameByLanguage[language] || "";
   const cacheKey = getCacheKey(text, language, voiceName);
 
-  // Check cache first
   const cachedUrl = ttsCache.get(cacheKey);
   if (cachedUrl) {
-    const audio = new Audio(cachedUrl);
-    activeAudio = audio;
-    await new Promise<void>((resolve, reject) => {
-      audio.onended = () => {
-        if (activeAudio === audio) activeAudio = null;
-        resolve();
-      };
-      audio.onerror = () => {
-        if (activeAudio === audio) activeAudio = null;
-        reject(new Error("Audio playback failed."));
-      };
-      audio.play().catch((playError: unknown) => {
-        if (activeAudio === audio) activeAudio = null;
-        reject(playError instanceof Error ? playError : new Error(String(playError)));
-      });
-    });
+    await playAudioUrl(cachedUrl);
     return;
   }
 
-  const response = await fetch(
-    `/api/tts?text=${encodeURIComponent(text)}&lang=${language}&voice=${encodeURIComponent(voiceName)}`,
-  );
-  if (!response.ok) {
-    throw new Error(`Backend TTS failed with status ${response.status}`);
-  }
+  try {
+    const response = await fetch(
+      `/api/tts?text=${encodeURIComponent(text)}&lang=${language}&voice=${encodeURIComponent(voiceName)}`,
+    );
+    if (response.ok) {
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
 
-  const blob = await response.blob();
-  const audioUrl = URL.createObjectURL(blob);
+      if (ttsCache.size >= 20) {
+        const firstKey = ttsCache.keys().next().value;
+        if (firstKey) {
+          const oldUrl = ttsCache.get(firstKey);
+          if (oldUrl) URL.revokeObjectURL(oldUrl);
+          ttsCache.delete(firstKey);
+        }
+      }
+      ttsCache.set(cacheKey, audioUrl);
 
-  // Cache the URL (limit cache size to 20 entries)
-  if (ttsCache.size >= 20) {
-    const firstKey = ttsCache.keys().next().value;
-    if (firstKey) {
-      const oldUrl = ttsCache.get(firstKey);
-      if (oldUrl) URL.revokeObjectURL(oldUrl);
-      ttsCache.delete(firstKey);
+      await playAudioUrl(audioUrl);
+      return;
     }
+  } catch {
+    // Server TTS unavailable — fall through to browser speechSynthesis
   }
-  ttsCache.set(cacheKey, audioUrl);
 
+  // Fallback: browser speechSynthesis (works on Vercel)
+  await speakTextBrowser(text, language);
+};
+
+const speakTextBrowser = (text: string, language: InterviewLanguage): Promise<void> => {
+  if (!("speechSynthesis" in window)) {
+    throw new Error("Text-to-speech is not available in this browser.");
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === "vi" ? "vi-VN" : "en-US";
+    utterance.rate = 0.9;
+
+    // Pick a matching voice if available
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      const langCode = language === "vi" ? "vi" : "en";
+      const match = voices.find((v) => v.lang.startsWith(langCode));
+      if (match) utterance.voice = match;
+    }
+
+    utterance.onend = () => resolve();
+    utterance.onerror = (event) => reject(new Error(`Text-to-speech error: ${event.error}`));
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  });
+};
+
+const playAudioUrl = async (audioUrl: string): Promise<void> => {
   const audio = new Audio(audioUrl);
   activeAudio = audio;
-
   await new Promise<void>((resolve, reject) => {
     audio.onended = () => {
       if (activeAudio === audio) activeAudio = null;
