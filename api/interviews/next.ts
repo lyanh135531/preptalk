@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 const CONFIG = {
   OPENROUTER_API_KEY: process.env["OPENROUTER_API_KEY"] ?? "",
   OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-  CHAT_MODEL: process.env["OPENROUTER_CHAT_MODEL"] ?? "nvidia/nemotron-3-super-120b-a12b:free",
+  CHAT_MODEL: process.env["OPENROUTER_CHAT_MODEL"] ?? "openai/gpt-oss-20b:free",
   APP_TITLE: "PrepTalk",
 } as const;
 
@@ -180,6 +180,13 @@ const formatHistory = (history: Array<{ question: { text: string }; transcript: 
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
 ): Promise<void> {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed", code: "INVALID_INPUT" });
