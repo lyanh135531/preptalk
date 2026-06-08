@@ -67,6 +67,13 @@ export const ensureSpeechRecognitionSupport = (): void => {
 };
 
 export const ensureMicrophoneAccess = async (): Promise<void> => {
+  // HTTPS required for microphone access (except localhost)
+  if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+    throw new Error(
+      "Microphone access requires HTTPS. Please access this site via HTTPS, or use localhost for development.",
+    );
+  }
+
   if (
     navigator.mediaDevices === undefined ||
     navigator.mediaDevices.getUserMedia === undefined
