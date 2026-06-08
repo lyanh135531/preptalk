@@ -210,7 +210,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     "suggest_answer_response",
     suggestAnswerJsonSchema,
     0.6,
-    900
+    1500
   );
 
   if (!raw) {

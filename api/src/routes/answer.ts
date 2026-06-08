@@ -267,7 +267,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     "answer_review_response",
     answerFeedbackJsonSchema,
     0.4,
-    800
+    1500
   );
 
   if (!raw) {
