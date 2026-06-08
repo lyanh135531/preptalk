@@ -10,35 +10,35 @@ WORKDIR /build
 COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
-COPY api/package.json ./api/
 
 RUN npm ci --ignore-scripts
 
+COPY tsconfig.base.json ./
 COPY apps/web/ ./apps/web/
 COPY packages/shared/ ./packages/shared/
-COPY api/ ./api/
 
-RUN npm run build -w @preptalk/web
+RUN cd /build/apps/web && npx vite build
 
-# ── Stage 2: API Server ──
+# ── Stage 2: API Server (production) ──
 FROM node:22-alpine AS api
 
 WORKDIR /app
 
 RUN npm install -g tsx
 
-COPY package.json package-lock.json ./
-COPY api/package.json ./api/
-COPY packages/shared/package.json ./packages/shared/
+# Copy API as standalone (NOT workspace) to avoid Express 5 from root lock
+COPY api/ ./api/
+COPY packages/shared/ ./packages/shared/
 
-RUN npm ci --omit=dev --ignore-scripts && \
-    npm cache clean --force
-
-COPY api/src/ ./api/src/
-
-# Copy built frontend static files
+# Copy built frontend
 COPY --from=frontend-builder /build/apps/web/dist ./webapp/dist
 
+# Install deps for api and shared separately (respects their package.json)
+RUN cd /app/api && npm install --production --ignore-scripts && \
+    cd /app/packages/shared && npm install --production --ignore-scripts 2>/dev/null || true && \
+    npm cache clean --force
+
+# Create non-root user
 RUN addgroup -g 1001 -S preptalk && \
     adduser -S preptalk -u 1001 -G preptalk
 USER preptalk

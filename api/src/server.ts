@@ -37,8 +37,9 @@ app.use("/api/interviews/next", nextRouter);
 
 // ── Static Frontend ──
 const distCandidates = [
-  path.resolve(__dirname, "../webapp/dist"),       // Docker production
-  path.resolve(__dirname, "../../apps/web/dist"),  // Dev local (monorepo)
+  "/app/webapp/dist",                                // Docker production (absolute)
+  path.resolve(__dirname, "../webapp/dist"),          // Docker production (relative)
+  path.resolve(__dirname, "../../apps/web/dist"),     // Dev local
 ];
 
 let distPath: string | null = null;
@@ -67,7 +68,7 @@ if (distPath) {
   console.log("   Frontend: ⚠️  No dist found (API-only mode)");
 }
 
-// SPA fallback — chỉ cho non-API, phải là route CUỐI CÙNG
+// SPA fallback — Express 4 wildcard, must be last
 app.get("*", (req, res) => {
   if (req.path.startsWith("/api/")) {
     return res.status(404).json({ error: "API endpoint not found" });

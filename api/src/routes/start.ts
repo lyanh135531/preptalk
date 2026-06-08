@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
-import { z } from "zod";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 
 const CONFIG = {
   OPENROUTER_API_KEY: process.env["OPENROUTER_API_KEY"] ?? "",
@@ -118,9 +118,7 @@ const requestStartAiResponse = async (
     0.7,
     700
   );
-
   if (raw === null) return null;
-
   try {
     return startAiResponseSchema.parse(JSON.parse(raw));
   } catch {
@@ -153,7 +151,7 @@ router.post("/start", async (req: Request, res: Response): Promise<void> => {
         "Create the FIRST interview question for this candidate.",
         "The question should be:",
         "- Practical and role-specific",
-        "- Suitable for a spoken interview (something a human interviewer would ask)",
+        "- Suitable for a spoken interview",
         "- Concise (1-2 sentences)",
         "- Tailored to the candidate's experience level",
         "",
