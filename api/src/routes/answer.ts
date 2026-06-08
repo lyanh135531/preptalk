@@ -210,7 +210,7 @@ const formatHistory = (history: Array<{ question: { text: string }; transcript: 
 
 const router = Router();
 
-router.post("/answer", async (req: Request, res: Response): Promise<void> => {
+router.post("/", async (req: Request, res: Response): Promise<void> => {
   const parsed = answerPayloadSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message, code: "INVALID_INPUT" });
