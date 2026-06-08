@@ -30,7 +30,11 @@ export default tseslint.config(
         ...globals.node
       },
       parserOptions: {
-        projectService: true,
+        project: [
+          "./apps/web/tsconfig.json",
+          "./packages/shared/tsconfig.json",
+          "./tsconfig.api.json"
+        ],
         tsconfigRootDir: import.meta.dirname
       }
     },
