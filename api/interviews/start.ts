@@ -8,6 +8,7 @@ const CONFIG = {
   CHAT_MODEL: process.env["OPENROUTER_CHAT_MODEL"] ?? "openai/gpt-oss-20b:free",
   APP_TITLE: "PrepTalk",
   MAX_QUESTIONS: 999999,
+  OPENROUTER_MAX_ATTEMPTS: 3,
 } as const;
 
 async function fetchOpenRouter(
@@ -106,6 +107,66 @@ const buildSystemInstruction = (lang: "vi" | "en") => [
   "Return only JSON matching the schema. No markdown, no code.",
 ].join("\n");
 
+type StartAiResponse = z.infer<typeof startAiResponseSchema>;
+
+type StartAiResult =
+  | {
+      readonly type: "success";
+      readonly response: StartAiResponse;
+    }
+  | {
+      readonly type: "unavailable";
+    }
+  | {
+      readonly type: "invalid";
+    };
+
+const requestStartAiResponse = async (
+  messages: { role: string; content: string }[]
+): Promise<StartAiResult> => {
+  let lastFailure: "unavailable" | "invalid" = "unavailable";
+
+  for (let attempt = 1; attempt <= CONFIG.OPENROUTER_MAX_ATTEMPTS; attempt += 1) {
+    const raw = await fetchOpenRouter(
+      messages,
+      "interview_start_response",
+      startInterviewJsonSchema,
+      0.7,
+      700
+    );
+
+    if (raw === null) {
+      lastFailure = "unavailable";
+      console.warn("openrouter_start_retry", {
+        attempt,
+        maxAttempts: CONFIG.OPENROUTER_MAX_ATTEMPTS,
+        reason: "unavailable",
+        model: CONFIG.CHAT_MODEL,
+      });
+      continue;
+    }
+
+    try {
+      return {
+        type: "success",
+        response: startAiResponseSchema.parse(JSON.parse(raw)),
+      };
+    } catch (error: unknown) {
+      lastFailure = "invalid";
+      console.warn("openrouter_start_retry", {
+        attempt,
+        maxAttempts: CONFIG.OPENROUTER_MAX_ATTEMPTS,
+        reason: "invalid_response",
+        model: CONFIG.CHAT_MODEL,
+        contentLength: raw.length,
+        error: String(error),
+      });
+    }
+  }
+
+  return { type: lastFailure };
+};
+
 // ── Handler ──
 
 export default async function handler(
@@ -156,15 +217,9 @@ export default async function handler(
     },
   ];
 
-  const raw = await fetchOpenRouter(
-    messages,
-    "interview_start_response",
-    startInterviewJsonSchema,
-    0.7,
-    700
-  );
+  const aiResult = await requestStartAiResponse(messages);
 
-  if (!raw) {
+  if (aiResult.type === "unavailable") {
     res.status(502).json({
       error: "The AI interviewer is unavailable right now. Please try again.",
       code: "AI_UNAVAILABLE",
@@ -172,8 +227,16 @@ export default async function handler(
     return;
   }
 
-  try {
-    const aiResponse = startAiResponseSchema.parse(JSON.parse(raw));
+  if (aiResult.type === "invalid") {
+    res.status(502).json({
+      error: "The AI interviewer returned an invalid response. Please try again.",
+      code: "AI_UNAVAILABLE",
+    });
+    return;
+  }
+
+  {
+    const aiResponse = aiResult.response;
     const question = {
       ...aiResponse.question,
       id: aiResponse.question.id.trim().length > 0 ? aiResponse.question.id : randomUUID(),
@@ -191,10 +254,5 @@ export default async function handler(
     };
 
     res.json({ session, question });
-  } catch {
-    res.status(502).json({
-      error: "The AI interviewer returned an invalid response. Please try again.",
-      code: "AI_UNAVAILABLE",
-    });
   }
 }
