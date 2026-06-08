@@ -19,22 +19,41 @@ COPY packages/shared/ ./packages/shared/
 
 RUN cd /build/apps/web && npx vite build
 
-# ── Stage 2: Production (API + Frontend) ──
+# ── Stage 2: Build API with esbuild ──
+FROM node:22-alpine AS api-builder
+
+WORKDIR /build
+
+COPY api/ ./api/
+COPY packages/shared/ ./packages/shared/
+
+RUN cd /build/api && npm install && \
+    npx esbuild src/server.ts \
+      --bundle \
+      --platform=node \
+      --target=node22 \
+      --format=esm \
+      --outfile=dist/server.js \
+      --external:express \
+      --external:cors \
+      --external:zod \
+      --external:node:crypto \
+      --external:node:fs \
+      --external:node:path \
+      --external:node:url \
+      --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
+
+# ── Stage 3: Production ──
 FROM node:22-alpine AS api
 
 WORKDIR /app
 
-# Copy API source
-COPY api/ ./api/
-COPY packages/shared/ ./packages/shared/
+# Copy bundled API
+COPY --from=api-builder /build/api/dist ./dist
+COPY --from=api-builder /build/api/node_modules ./node_modules
 
 # Copy built frontend
 COPY --from=frontend-builder /build/apps/web/dist ./webapp/dist
-
-# Install API deps + tsx locally (not global)
-RUN cd /app/api && npm ci && \
-    npm pkg set dependencies.tsx="$(npm view tsx version)" && \
-    cd /app/packages/shared && npm ci 2>/dev/null || true
 
 # Create non-root user
 RUN addgroup -g 1001 -S preptalk && \
@@ -46,4 +65,4 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1
 
-CMD ["sh", "-c", "cd /app/api && npx tsx src/server.ts"]
+CMD ["node", "dist/server.js"]
