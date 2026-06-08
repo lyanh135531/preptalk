@@ -49,7 +49,11 @@ async function fetchOpenRouter(
       choices?: Array<{ message?: { content?: string } }>;
     };
     const content = json.choices?.[0]?.message?.content;
-    if (content) return content;
+    if (content) {
+      console.log("[openrouter] content received:", content.substring(0, 200));
+      return content;
+    }
+    console.warn("[openrouter] empty content", { hasChoices: !!json.choices, firstChoice: json.choices?.[0] });
     return null;
   } catch (err) {
     console.warn("openrouter_error", { error: String(err) });
@@ -118,8 +122,11 @@ const requestStartAiResponse = async (
   );
   if (raw === null) return null;
   try {
-    return startAiResponseSchema.parse(JSON.parse(raw));
-  } catch {
+    const parsed = JSON.parse(raw);
+    console.log("[openrouter] parsed JSON:", JSON.stringify(parsed).substring(0, 200));
+    return startAiResponseSchema.parse(parsed);
+  } catch (e) {
+    console.warn("[openrouter] parse failed", { error: String(e), raw: raw.substring(0, 300) });
     return null;
   }
 };
