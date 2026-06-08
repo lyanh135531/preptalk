@@ -23,8 +23,7 @@ async function fetchOpenRouter(
     temperature,
     max_tokens: maxTokens,
     response_format: {
-      type: "json_schema",
-      json_schema: { name: responseSchemaName, strict: true, schema: responseJsonSchema },
+      type: "json_object",
     },
   };
 
