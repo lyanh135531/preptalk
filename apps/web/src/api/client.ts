@@ -7,7 +7,10 @@ import type {
   SuggestAnswerRequest,
   SuggestAnswerResponse,
   NextQuestionRequest,
-  NextQuestionResponse
+  NextQuestionResponse,
+  CvAnalysis,
+  JdAnalysis,
+  CvJdMatch,
 } from "@preptalk/shared";
 import {
   apiErrorResponseSchema,
@@ -15,7 +18,10 @@ import {
   healthResponseSchema,
   startInterviewResponseSchema,
   suggestAnswerResponseSchema,
-  nextQuestionResponseSchema
+  nextQuestionResponseSchema,
+  parseCvResponseSchema,
+  analyzeJdResponseSchema,
+  matchCvJdResponseSchema,
 } from "@preptalk/shared";
 import type { ZodSchema } from "zod";
 
@@ -101,4 +107,53 @@ const readApiError = async (response: Response): Promise<string> => {
   }
 
   return "PrepTalk could not complete the request. Please try again.";
+};
+
+// ── CV / JD ──
+
+export const parseCv = async (file: File): Promise<CvAnalysis> => {
+  const formData = new FormData();
+  formData.append("cv", file);
+
+  const response = await fetch("/api/cv/parse", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const json: unknown = await response.json();
+  return parseCvResponseSchema.parse(json).cv;
+};
+
+export const analyzeJd = async (jdText: string): Promise<JdAnalysis> => {
+  const response = await fetch("/api/jd/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jdText }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const json: unknown = await response.json();
+  return analyzeJdResponseSchema.parse(json).jd;
+};
+
+export const matchCvJd = async (cv: CvAnalysis, jd: JdAnalysis): Promise<CvJdMatch> => {
+  const response = await fetch("/api/cv-jd/match", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cv, jd }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const json: unknown = await response.json();
+  return matchCvJdResponseSchema.parse(json).match;
 };

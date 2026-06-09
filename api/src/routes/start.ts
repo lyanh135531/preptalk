@@ -75,6 +75,30 @@ const startInterviewRequestSchema = z.object({
   language: z.enum(["vi", "en"]),
   role: z.string().trim().min(2).max(120),
   yearsOfExperience: z.string().default("0-1 years"),
+  cvAnalysis: z.object({
+    candidateName: z.string().default(""),
+    skills: z.array(z.string()).default([]),
+    experience: z.array(z.object({ role: z.string(), duration: z.string().default(""), highlights: z.array(z.string()).default([]) })).default([]),
+    education: z.array(z.object({ degree: z.string().default(""), school: z.string().default("") })).default([]),
+    summary: z.string().default(""),
+    strengths: z.array(z.string()).default([]),
+    gaps: z.array(z.string()).default([]),
+  }).optional().nullable(),
+  jdAnalysis: z.object({
+    title: z.string().default(""),
+    mustHaveSkills: z.array(z.string()).default([]),
+    niceToHaveSkills: z.array(z.string()).default([]),
+    seniority: z.string().default(""),
+    keyResponsibilities: z.array(z.string()).default([]),
+    summary: z.string().default(""),
+  }).optional().nullable(),
+  cvJdMatch: z.object({
+    matchScore: z.number().int().min(0).max(100),
+    matchedSkills: z.array(z.string()).default([]),
+    missingSkills: z.array(z.string()).default([]),
+    focusAreas: z.array(z.string()).default([]),
+    suggestedQuestions: z.array(z.string()).default([]),
+  }).optional().nullable(),
 });
 
 const startAiResponseSchema = z.object({
@@ -152,16 +176,57 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { candidateName, language, role, yearsOfExperience } = parsed.data;
+  const { candidateName, language, role, yearsOfExperience, cvAnalysis, jdAnalysis, cvJdMatch } = parsed.data;
+
+  // Build enhanced context from CV/JD if available
+  const contextLines: string[] = [
+    `Candidate: ${candidateName}`,
+    `Target role: ${role}`,
+    `Years of experience: ${yearsOfExperience}`,
+  ];
+
+  if (cvAnalysis) {
+    contextLines.push(
+      "",
+      "=== CANDIDATE CV ANALYSIS ===",
+      cvAnalysis.candidateName ? `Name: ${cvAnalysis.candidateName}` : "",
+      cvAnalysis.summary ? `Summary: ${cvAnalysis.summary}` : "",
+      cvAnalysis.skills.length > 0 ? `Skills: ${cvAnalysis.skills.join(", ")}` : "",
+      cvAnalysis.experience.length > 0 ? `Experience: ${cvAnalysis.experience.map(e => `${e.role} (${e.duration})`).join("; ")}` : "",
+      cvAnalysis.strengths.length > 0 ? `Strengths: ${cvAnalysis.strengths.join(", ")}` : "",
+      cvAnalysis.gaps.length > 0 ? `Gaps: ${cvAnalysis.gaps.join(", ")}` : "",
+    );
+  }
+
+  if (jdAnalysis) {
+    contextLines.push(
+      "",
+      "=== JOB DESCRIPTION ===",
+      jdAnalysis.title ? `Title: ${jdAnalysis.title}` : "",
+      jdAnalysis.summary ? `Summary: ${jdAnalysis.summary}` : "",
+      jdAnalysis.mustHaveSkills.length > 0 ? `Must-have skills: ${jdAnalysis.mustHaveSkills.join(", ")}` : "",
+      jdAnalysis.niceToHaveSkills.length > 0 ? `Nice-to-have: ${jdAnalysis.niceToHaveSkills.join(", ")}` : "",
+      jdAnalysis.keyResponsibilities.length > 0 ? `Responsibilities: ${jdAnalysis.keyResponsibilities.join("; ")}` : "",
+    );
+  }
+
+  if (cvJdMatch) {
+    contextLines.push(
+      "",
+      "=== CV × JD MATCH ===",
+      `Match score: ${cvJdMatch.matchScore}%`,
+      cvJdMatch.matchedSkills.length > 0 ? `Matched skills: ${cvJdMatch.matchedSkills.join(", ")}` : "",
+      cvJdMatch.missingSkills.length > 0 ? `Missing skills: ${cvJdMatch.missingSkills.join(", ")}` : "",
+      cvJdMatch.focusAreas.length > 0 ? `Focus areas: ${cvJdMatch.focusAreas.join("; ")}` : "",
+    );
+  }
 
   const messages = [
     { role: "system", content: buildSystemInstruction(language) },
     {
       role: "user",
       content: [
-        `Candidate: ${candidateName}`,
-        `Target role: ${role}`,
-        `Years of experience: ${yearsOfExperience}`,
+        ...contextLines,
         "",
         "Create the FIRST interview question for this candidate.",
         "The question should be:",
@@ -169,6 +234,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
         "- Suitable for a spoken interview",
         "- Concise (1-2 sentences)",
         "- Tailored to the candidate's experience level",
+        cvJdMatch ? "- Consider the CV×JD match: probe strengths and address gaps" : "",
         "",
         "Do NOT include greetings like 'Hello' or 'Welcome'.",
         "Do NOT write code or technical examples.",

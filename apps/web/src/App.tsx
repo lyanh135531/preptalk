@@ -1,7 +1,10 @@
 import type {
+  CvAnalysis,
+  CvJdMatch,
   InterviewLanguage,
   InterviewSession,
   InterviewTurn,
+  JdAnalysis,
   NextQuestionResponse,
   Question,
   StoredInterview
@@ -15,7 +18,10 @@ import {
   startInterview,
   submitAnswer,
   suggestAnswer,
-  getNextQuestion
+  getNextQuestion,
+  parseCv,
+  analyzeJd,
+  matchCvJd,
 } from "./api/client";
 import type { ActiveSpeechCapture } from "./lib/audio";
 import {
@@ -44,6 +50,26 @@ type WorkStatus = "idle" | "starting" | "playing" | "suggesting" | "recording" |
 const customRoleValue = "__custom_role__";
 const defaultRole = "Backend Engineer .NET";
 
+// ── localStorage keys ──
+const LS_CV = "preptalk_cv";
+const LS_JD = "preptalk_jd";
+const LS_MATCH = "preptalk_match";
+
+const loadFromLs = <T,>(key: string): T | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : null;
+  } catch { return null; }
+};
+
+const saveToLs = (key: string, value: unknown): void => {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* quota */ }
+};
+
+const clearLs = (key: string): void => {
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
+};
+
 export const App = () => {
   const [stage, setStage] = useState<AppStage>("setup");
   const [workStatus, setWorkStatus] = useState<WorkStatus>("idle");
@@ -61,6 +87,12 @@ export const App = () => {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [storedInterview, setStoredInterview] = useState<StoredInterview | null>(null);
   const [micStream, setMicStream] = useState<MediaStream | null>(null);
+  const [cvAnalysis, setCvAnalysis] = useState<CvAnalysis | null>(loadFromLs<CvAnalysis>(LS_CV));
+  const [jdAnalysis, setJdAnalysis] = useState<JdAnalysis | null>(loadFromLs<JdAnalysis>(LS_JD));
+  const [cvJdMatch, setCvJdMatch] = useState<CvJdMatch | null>(loadFromLs<CvJdMatch>(LS_MATCH));
+  const [isParsingCv, setIsParsingCv] = useState(false);
+  const [isAnalyzingJd, setIsAnalyzingJd] = useState(false);
+  const [isMatching, setIsMatching] = useState(false);
   const activeSpeechCaptureRef = useRef<ActiveSpeechCapture | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
 
@@ -121,6 +153,77 @@ export const App = () => {
     setStage("readiness");
   };
 
+  // ── CV / JD Handlers ──
+
+  const handleCvUpload = async (file: File): Promise<void> => {
+    setErrorMessage(null);
+    setIsParsingCv(true);
+    try {
+      const cv = await parseCv(file);
+      setCvAnalysis(cv);
+      saveToLs(LS_CV, cv);
+      // Auto-fill name from CV if empty
+      if (!candidateName.trim() && cv.candidateName) {
+        setCandidateName(cv.candidateName);
+      }
+      // Auto-fill role from CV if it matches a predefined role
+      if (cv.experience.length > 0 && cv.experience[0]) {
+        const latestRole = cv.experience[0].role;
+        const matched = predefinedRoles.find(r => r.toLowerCase().includes(latestRole.toLowerCase()) || latestRole.toLowerCase().includes(r.toLowerCase()));
+        if (matched) setSelectedRole(matched);
+      }
+    } catch (error: unknown) {
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsParsingCv(false);
+    }
+  };
+
+  const handleSkipCv = (): void => {
+    // No-op, just proceed
+  };
+
+  const handleJdTextChange = (_value: string): void => {
+    // JD text is managed locally in SetupScreen
+  };
+
+  const handleAnalyzeJd = async (jdText: string): Promise<void> => {
+    if (jdText.trim().length < 20) {
+      setErrorMessage("Please provide a job description (at least 20 characters).");
+      return;
+    }
+    setErrorMessage(null);
+    setIsAnalyzingJd(true);
+    try {
+      const jd = await analyzeJd(jdText);
+      setJdAnalysis(jd);
+      saveToLs(LS_JD, jd);
+    } catch (error: unknown) {
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsAnalyzingJd(false);
+    }
+  };
+
+  const handleSkipJd = (): void => {
+    // No-op, just proceed
+  };
+
+  const handleMatchCvJd = async (): Promise<void> => {
+    if (!cvAnalysis || !jdAnalysis) return;
+    setErrorMessage(null);
+    setIsMatching(true);
+    try {
+      const match = await matchCvJd(cvAnalysis, jdAnalysis);
+      setCvJdMatch(match);
+      saveToLs(LS_MATCH, match);
+    } catch (error: unknown) {
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsMatching(false);
+    }
+  };
+
   const handleConfirmReady = async (): Promise<void> => {
     setErrorMessage(null);
     setNoticeMessage(null);
@@ -140,7 +243,10 @@ export const App = () => {
         candidateName: candidateName.trim(),
         language,
         role: resolvedRole,
-        yearsOfExperience
+        yearsOfExperience,
+        cvAnalysis,
+        jdAnalysis,
+        cvJdMatch,
       });
 
       setSession(response.session);
@@ -391,6 +497,11 @@ export const App = () => {
     setSpeakingTips([]);
     setNoticeMessage(null);
     setStage(storedInterview.currentQuestion === null ? "summary" : "interview");
+
+    // Clear CV/JD when resuming (they're not part of stored interview)
+    setCvAnalysis(null);
+    setJdAnalysis(null);
+    setCvJdMatch(null);
   };
 
   const handleResetInterview = (): void => {
@@ -415,6 +526,14 @@ export const App = () => {
     setNoticeMessage(null);
     setWorkStatus("idle");
     setStage("setup");
+
+    // Clear CV/JD from state + localStorage
+    setCvAnalysis(null);
+    setJdAnalysis(null);
+    setCvJdMatch(null);
+    clearLs(LS_CV);
+    clearLs(LS_JD);
+    clearLs(LS_MATCH);
   };
 
   const playQuestion = async (text: string, nextLanguage: InterviewLanguage): Promise<void> => {
@@ -451,11 +570,23 @@ export const App = () => {
           selectedRole={selectedRole}
           yearsOfExperience={yearsOfExperience}
           storedInterview={storedInterview}
+          cvAnalysis={cvAnalysis}
+          jdAnalysis={jdAnalysis}
+          cvJdMatch={cvJdMatch}
+          isParsingCv={isParsingCv}
+          isAnalyzingJd={isAnalyzingJd}
+          isMatching={isMatching}
           onCandidateNameChange={setCandidateName}
           onCustomRoleChange={setCustomRole}
           onLanguageChange={setLanguage}
           onProfileSubmit={handleProfileSubmit}
           onResume={handleResumeStoredInterview}
+          onCvUpload={handleCvUpload}
+          onJdTextChange={handleJdTextChange}
+          onAnalyzeJd={(jdText: string) => handleAnalyzeJd(jdText)}
+          onMatchCvJd={handleMatchCvJd}
+          onSkipCv={handleSkipCv}
+          onSkipJd={handleSkipJd}
           onSelectedRoleChange={setSelectedRole}
           onYearsOfExperienceChange={setYearsOfExperience}
         />

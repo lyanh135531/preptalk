@@ -5,7 +5,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import answerRouter from "./routes/answer.js";
+import cvParseRouter from "./routes/cv-parse.js";
 import healthRouter from "./routes/health.js";
+import jdAnalyzeRouter from "./routes/jd-analyze.js";
+import matchRouter from "./routes/match.js";
 import nextRouter from "./routes/next.js";
 import startRouter from "./routes/start.js";
 import suggestRouter from "./routes/suggest.js";
@@ -25,11 +28,14 @@ app.use(cors({
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type"],
 }));
-app.use(express.json({ limit: "500kb" }));
+app.use(express.json({ limit: "2mb" }));
 
 // ── API Routes (trước static) ──
 app.use("/api/health", healthRouter);
 app.use("/api/tts", ttsRouter);
+app.use("/api/cv/parse", cvParseRouter);
+app.use("/api/jd/analyze", jdAnalyzeRouter);
+app.use("/api/cv-jd/match", matchRouter);
 app.use("/api/interviews/start", startRouter);
 app.use("/api/interviews/suggest", suggestRouter);
 app.use("/api/interviews/answer", answerRouter);

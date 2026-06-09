@@ -125,7 +125,31 @@ export const startInterviewRequestSchema = z.object({
   candidateName: z.string().trim().min(1).max(80),
   language: interviewLanguageSchema,
   role: z.string().trim().min(2).max(120),
-  yearsOfExperience: z.string().default("0-1 years")
+  yearsOfExperience: z.string().default("0-1 years"),
+  cvAnalysis: z.object({
+    candidateName: z.string().default(""),
+    skills: z.array(z.string()).default([]),
+    experience: z.array(z.object({ role: z.string(), duration: z.string().default(""), highlights: z.array(z.string()).default([]) })).default([]),
+    education: z.array(z.object({ degree: z.string().default(""), school: z.string().default("") })).default([]),
+    summary: z.string().default(""),
+    strengths: z.array(z.string()).default([]),
+    gaps: z.array(z.string()).default([]),
+  }).optional().nullable(),
+  jdAnalysis: z.object({
+    title: z.string().default(""),
+    mustHaveSkills: z.array(z.string()).default([]),
+    niceToHaveSkills: z.array(z.string()).default([]),
+    seniority: z.string().default(""),
+    keyResponsibilities: z.array(z.string()).default([]),
+    summary: z.string().default(""),
+  }).optional().nullable(),
+  cvJdMatch: z.object({
+    matchScore: z.number().int().min(0).max(100),
+    matchedSkills: z.array(z.string()).default([]),
+    missingSkills: z.array(z.string()).default([]),
+    focusAreas: z.array(z.string()).default([]),
+    suggestedQuestions: z.array(z.string()).default([]),
+  }).optional().nullable(),
 });
 
 export const startInterviewResponseSchema = z.object({
@@ -208,3 +232,81 @@ export type NextQuestionResponse = z.infer<typeof nextQuestionResponseSchema>;
 export type StoredInterview = z.infer<typeof storedInterviewSchema>;
 export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
+
+// ── CV Analysis ──
+
+export const cvExperienceSchema = z.object({
+  role: z.string().min(1),
+  duration: z.string().default(""),
+  highlights: z.array(z.string()).default([]),
+});
+
+export const cvEducationSchema = z.object({
+  degree: z.string().default(""),
+  school: z.string().default(""),
+});
+
+export const cvAnalysisSchema = z.object({
+  candidateName: z.string().default(""),
+  skills: z.array(z.string()).default([]),
+  experience: z.array(cvExperienceSchema).default([]),
+  education: z.array(cvEducationSchema).default([]),
+  summary: z.string().default(""),
+  strengths: z.array(z.string()).default([]),
+  gaps: z.array(z.string()).default([]),
+});
+
+// ── JD Analysis ──
+
+export const jdAnalysisSchema = z.object({
+  title: z.string().default(""),
+  mustHaveSkills: z.array(z.string()).default([]),
+  niceToHaveSkills: z.array(z.string()).default([]),
+  seniority: z.string().default(""),
+  keyResponsibilities: z.array(z.string()).default([]),
+  summary: z.string().default(""),
+});
+
+// ── CV × JD Match ──
+
+export const cvJdMatchSchema = z.object({
+  matchScore: z.number().int().min(0).max(100),
+  matchedSkills: z.array(z.string()).default([]),
+  missingSkills: z.array(z.string()).default([]),
+  focusAreas: z.array(z.string()).default([]),
+  suggestedQuestions: z.array(z.string()).default([]),
+});
+
+// ── API Request/Response ──
+
+export const parseCvResponseSchema = z.object({
+  cv: cvAnalysisSchema,
+});
+
+export const analyzeJdRequestSchema = z.object({
+  jdText: z.string().trim().min(20).max(20000),
+});
+
+export const analyzeJdResponseSchema = z.object({
+  jd: jdAnalysisSchema,
+});
+
+export const matchCvJdRequestSchema = z.object({
+  cv: cvAnalysisSchema,
+  jd: jdAnalysisSchema,
+});
+
+export const matchCvJdResponseSchema = z.object({
+  match: cvJdMatchSchema,
+});
+
+export type CvExperience = z.infer<typeof cvExperienceSchema>;
+export type CvEducation = z.infer<typeof cvEducationSchema>;
+export type CvAnalysis = z.infer<typeof cvAnalysisSchema>;
+export type JdAnalysis = z.infer<typeof jdAnalysisSchema>;
+export type CvJdMatch = z.infer<typeof cvJdMatchSchema>;
+export type ParseCvResponse = z.infer<typeof parseCvResponseSchema>;
+export type AnalyzeJdRequest = z.infer<typeof analyzeJdRequestSchema>;
+export type AnalyzeJdResponse = z.infer<typeof analyzeJdResponseSchema>;
+export type MatchCvJdRequest = z.infer<typeof matchCvJdRequestSchema>;
+export type MatchCvJdResponse = z.infer<typeof matchCvJdResponseSchema>;
