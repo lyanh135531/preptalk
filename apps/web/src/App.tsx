@@ -32,6 +32,7 @@ import {
 } from "./lib/storage";
 
 // Import refactored screens
+import { ParticlesBackground, GradientOrbs } from "./components/Background";
 import { SetupScreen } from "./components/SetupScreen";
 import { ReadinessScreen } from "./components/ReadinessScreen";
 import { InterviewScreen } from "./components/InterviewScreen";
@@ -438,7 +439,9 @@ export const App = () => {
   };
 
   return (
-    <main className="min-h-screen bg-surface text-ink">
+    <main className="relative z-10 min-h-screen bg-transparent text-ink">
+      <ParticlesBackground />
+      <GradientOrbs />
       {stage === "setup" ? (
         <SetupScreen
           candidateName={candidateName}

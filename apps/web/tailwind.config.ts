@@ -28,7 +28,9 @@ export default {
       boxShadow: {
         soft: "0 18px 46px rgba(0, 0, 0, 0.38)",
         glow: "0 0 20px rgba(22, 166, 199, 0.25)",
-      }
+        "glow-lg": "0 0 40px rgba(22, 166, 199, 0.35), 0 0 80px rgba(22, 166, 199, 0.15)",
+        "glow-sm": "0 0 12px rgba(22, 166, 199, 0.2)",
+      },
     }
   },
   plugins: []

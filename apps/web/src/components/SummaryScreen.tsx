@@ -41,22 +41,26 @@ export const SummaryScreen = (props: SummaryScreenProps) => {
       {/* Header card */}
       <header className="flex flex-col gap-4 border-b border-line pb-5 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">
-            <Award size={15} />
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-400 animate-fade-in-up">
+            <Award size={15} className="animate-bounce" />
             <span>Practice Completed</span>
           </div>
-          <h1 className="mt-1 text-3xl font-extrabold font-display text-ink">{props.session.role}</h1>
-          <p className="mt-1.5 text-xs text-slate-400">
+          <h1 className="mt-1 text-3xl font-extrabold font-display text-ink animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+            {props.session.role}
+          </h1>
+          <p className="mt-1.5 text-xs text-slate-400 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
             Candidate: <span className="font-semibold text-slate-200">{props.session.candidateName}</span> · Language: <span className="font-semibold text-slate-200">{languageLabels[props.session.language]}</span>
           </p>
         </div>
-        <button 
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-650 to-indigo-650 px-5 py-3 text-sm font-bold text-white hover:from-cyan-500 hover:to-indigo-500 transition active:scale-[0.98] shadow-glow" 
-          type="button" 
+        <button
+          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-6 py-3 text-sm font-bold text-white hover:from-cyan-400 hover:to-indigo-500 transition-all active:scale-[0.97] shadow-glow hover:shadow-glow-lg animate-fade-in-up animate-glow-pulse overflow-hidden group"
+          type="button"
           onClick={props.onReset}
+          style={{ animationDelay: "0.3s" }}
         >
-          New Practice Room
-          <Play size={15} aria-hidden="true" />
+          <span className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-indigo-400 to-cyan-400 bg-[length:200%_100%] animate-shimmer opacity-0 group-hover:opacity-30 transition-opacity" />
+          <Play size={15} aria-hidden="true" className="relative z-10 group-hover:rotate-12 transition-transform" />
+          <span className="relative z-10">New Practice Room</span>
         </button>
       </header>
 
@@ -64,22 +68,28 @@ export const SummaryScreen = (props: SummaryScreenProps) => {
         <div className="space-y-6 mt-6">
           {/* Average Scores section */}
           <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1fr_1.1fr]">
-            <section className="rounded-2xl border border-line bg-panel/65 p-5 shadow-soft backdrop-blur-md glass-panel">
+            <section className="rounded-2xl border border-line bg-panel/65 p-5 shadow-soft backdrop-blur-md glass-panel animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
               <div className="flex items-center gap-2 mb-4 border-b border-line/45 pb-3">
                 <Sparkles className="text-cyan-400" size={16} />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">Average Scores</h2>
               </div>
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-                {Object.entries(summary.averageScore).map(([key, value]) => (
-                  <ScoreGauge key={key} label={scoreLabels[key as keyof Score] ?? key} value={value as number} />
+                {Object.entries(summary.averageScore).map(([key, value], i) => (
+                  <div key={key} className="animate-scale-in" style={{ animationDelay: `${0.3 + i * 0.1}s` }}>
+                    <ScoreGauge label={scoreLabels[key as keyof Score] ?? key} value={value as number} />
+                  </div>
                 ))}
               </div>
             </section>
 
             {/* Overall strengths & weaknesses */}
             <section className="grid gap-4 md:grid-cols-2">
-              <SummaryList title="Overall Key Strengths" items={summary.strengths} cardStyle="border-emerald-500/10 bg-emerald-950/5" />
-              <SummaryList title="General Areas to Practice" items={summary.improvements} cardStyle="border-amber-500/10 bg-amber-950/5" />
+              <div className="animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
+                <SummaryList title="Overall Key Strengths" items={summary.strengths} cardStyle="border-emerald-500/10 bg-emerald-950/5" />
+              </div>
+              <div className="animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
+                <SummaryList title="General Areas to Practice" items={summary.improvements} cardStyle="border-amber-500/10 bg-amber-950/5" />
+              </div>
             </section>
           </div>
 

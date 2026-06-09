@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { InterviewLanguage, InterviewSession, InterviewTurn, Question } from "@preptalk/shared";
 import {
@@ -47,6 +47,12 @@ export const InterviewScreen = (props: InterviewScreenProps) => {
   const isPlaying = props.workStatus === "playing";
   const [rationaleOpen, setRationaleOpen] = useState(false);
   const [expandedTurnId, setExpandedTurnId] = useState<string | null>(null);
+  const [questionKey, setQuestionKey] = useState(0);
+
+  // Trigger question reveal animation when question changes
+  useEffect(() => {
+    setQuestionKey((k) => k + 1);
+  }, [props.currentQuestion?.id]);
 
   return (
     <section className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8 pb-40 md:pb-5 animate-fade-in">
@@ -82,8 +88,10 @@ export const InterviewScreen = (props: InterviewScreenProps) => {
         {/* Left Side: Current Question & History */}
         <aside className="space-y-4 order-2 lg:order-1">
           {/* Question card: sticky on mobile, normal on desktop */}
-          <section className="lg:rounded-2xl lg:border lg:border-line lg:bg-panel/65 lg:p-5 lg:shadow-soft lg:backdrop-blur-md lg:glass-panel
-            mobile-question-sticky">
+          <section
+            key={`q-${questionKey}`}
+            className="lg:rounded-2xl lg:border lg:border-line lg:bg-panel/65 lg:p-5 lg:shadow-soft lg:backdrop-blur-md lg:glass-panel mobile-question-sticky animate-scale-in"
+          >
             <div className="flex items-center justify-between gap-4 mb-3 lg:mb-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="rounded bg-cyan-950/60 border border-cyan-800/40 px-2.5 py-1 text-xs font-bold text-cyan-300 uppercase tracking-wide">
@@ -229,9 +237,16 @@ export const InterviewScreen = (props: InterviewScreenProps) => {
               </div>
             ) : null}
 
-            {/* Audio Waveform active visualization */}
+            {/* Audio Waveform + Recording indicator */}
             {isRecording && (
-              <div className="mt-4">
+              <div className="mt-4 animate-scale-in">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="relative flex size-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full size-3 bg-rose-500" />
+                  </span>
+                  <span className="text-xs font-semibold text-rose-400">Recording</span>
+                </div>
                 <AudioVisualizer stream={props.micStream} />
               </div>
             )}
@@ -340,32 +355,34 @@ export const InterviewScreen = (props: InterviewScreenProps) => {
             {/* Answer / Stop — primary CTA, full prominence */}
             {isRecording ? (
               <button
-                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-rose-600 px-6 py-3 text-sm font-bold text-white hover:bg-rose-500 transition active:scale-[0.97] animate-pulse-mic"
+                className="relative inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-rose-600 px-8 py-3 text-sm font-bold text-white hover:bg-rose-500 transition-all active:scale-[0.97] animate-glow-pulse overflow-hidden"
                 type="button"
                 onClick={props.onStopRecording}
               >
-                <CircleStop size={20} aria-hidden="true" />
-                <span>Stop</span>
+                <span className="absolute inset-0 bg-gradient-to-r from-rose-600 via-rose-500 to-rose-600 bg-[length:200%_100%] animate-shimmer" />
+                <CircleStop size={20} aria-hidden="true" className="relative z-10" />
+                <span className="relative z-10">Stop</span>
               </button>
             ) : (
               <button
-                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-cyan-650 px-6 py-3 text-sm font-bold text-white hover:bg-cyan-500 transition active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:opacity-50 shadow-glow"
+                className="relative inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 px-8 py-3 text-sm font-bold text-white transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:opacity-50 shadow-glow hover:shadow-glow-lg overflow-hidden group"
                 type="button"
                 disabled={!props.canUseInterviewActions || props.isBusy}
                 onClick={props.onStartRecording}
               >
+                <span className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-indigo-400 to-cyan-400 bg-[length:200%_100%] animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity" />
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-5 w-5 text-white relative z-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Analyzing...</span>
+                    <span className="relative z-10">Analyzing...</span>
                   </>
                 ) : (
                   <>
-                    <Mic size={20} aria-hidden="true" />
-                    <span>Answer</span>
+                    <Mic size={20} aria-hidden="true" className="relative z-10" />
+                    <span className="relative z-10">Answer</span>
                   </>
                 )}
               </button>
