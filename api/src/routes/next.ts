@@ -233,7 +233,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     messages,
     "interview_next_response",
     nextQuestionJsonSchema,
-    0.7, 1500
+    0.7, 3000
   );
 
   if (!raw) {

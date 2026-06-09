@@ -128,7 +128,7 @@ const requestStartAiResponse = async (
     messages,
     "interview_start_response",
     startInterviewJsonSchema,
-    0.7, 1500
+    0.7, 3000
   );
   if (raw === null) return null;
   try {
