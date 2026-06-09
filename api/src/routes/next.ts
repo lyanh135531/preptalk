@@ -124,7 +124,15 @@ const nextQuestionRequestSchema = z.object({
 });
 
 const nextAiResponseSchema = z.object({
-  question: questionSchema,
+  question: z.union([
+    questionSchema,
+    z.string().min(8).transform((text) => ({
+      id: `q-${Date.now()}`,
+      text,
+      category: "General",
+      rationale: "Interview question",
+    })),
+  ]),
 });
 
 const questionJsonSchema = {

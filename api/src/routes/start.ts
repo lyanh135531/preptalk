@@ -77,7 +77,17 @@ const startInterviewRequestSchema = z.object({
   yearsOfExperience: z.string().default("0-1 years"),
 });
 
-const startAiResponseSchema = z.object({ question: questionSchema });
+const startAiResponseSchema = z.object({
+  question: z.union([
+    questionSchema,
+    z.string().min(8).transform((text) => ({
+      id: `q-${Date.now()}`,
+      text,
+      category: "General",
+      rationale: "Interview question",
+    })),
+  ]),
+});
 
 // ── JSON Schema for OpenRouter ──
 
