@@ -83,8 +83,15 @@ export const ensureMicrophoneAccess = async (): Promise<void> => {
     );
   }
 
+  // Request with optimal audio constraints for speech recognition
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: true,
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      sampleRate: 16000,
+      channelCount: 1,
+    },
   });
 
   for (const track of stream.getTracks()) {

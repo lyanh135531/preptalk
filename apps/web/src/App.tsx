@@ -23,6 +23,8 @@ import {
   analyzeJd,
   matchCvJd,
 } from "./api/client";
+import { WhisperTranscriber } from "./lib/transcriber";
+import { AudioCapture } from "./lib/audio-capture";
 import type { ActiveSpeechCapture } from "./lib/audio";
 import {
   ensureMicrophoneAccess,
@@ -93,6 +95,9 @@ export const App = () => {
   const [isParsingCv, setIsParsingCv] = useState(false);
   const [isAnalyzingJd, setIsAnalyzingJd] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
+  const [whisperStatus, setWhisperStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const whisperRef = useRef<WhisperTranscriber | null>(null);
+  const audioCaptureRef = useRef<AudioCapture | null>(null);
   const activeSpeechCaptureRef = useRef<ActiveSpeechCapture | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
 
@@ -107,6 +112,28 @@ export const App = () => {
       stopSpeech();
     };
   }, []);
+
+  // Lazy-load Whisper model when entering interview stage
+  useEffect(() => {
+    if (stage !== "interview" || whisperStatus !== "idle" || !language) return;
+
+    setWhisperStatus("loading");
+    const transcriber = new WhisperTranscriber({
+      language,
+      onReady: () => setWhisperStatus("ready"),
+      onError: () => setWhisperStatus("error"),
+      onTranscript: () => {},
+    });
+    whisperRef.current = transcriber;
+    transcriber.loadModel().catch(() => setWhisperStatus("error"));
+
+    return () => {
+      transcriber.terminate();
+      whisperRef.current = null;
+      setWhisperStatus("idle");
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
 
   const resolvedRole = useMemo((): string => {
     if (selectedRole === customRoleValue) {
@@ -308,7 +335,15 @@ export const App = () => {
 
       stopCurrentPlayback();
 
-      // Get mic stream for visualization
+      // If Whisper is ready, use AudioCapture pipeline
+      if (whisperRef.current?.isModelLoaded) {
+        audioCaptureRef.current = new AudioCapture();
+        audioCaptureRef.current.start();
+        setWorkStatus("recording");
+        return;
+      }
+
+      // Fallback to Web Speech API
       if (navigator.mediaDevices?.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
           micStreamRef.current = stream;
@@ -331,6 +366,62 @@ export const App = () => {
   const prefetchSessionRef = useRef<InterviewSession | null>(null);
 
   const handleStopRecording = async (): Promise<void> => {
+    setErrorMessage(null);
+    setNoticeMessage(null);
+
+    // Whisper path
+    if (audioCaptureRef.current && whisperRef.current?.isModelLoaded) {
+      try {
+        const audio = audioCaptureRef.current.stop();
+        audioCaptureRef.current = null;
+
+        if (audio.length < 16000) {
+          throw new Error("Your answer was too short. Please speak a little longer and try again.");
+        }
+
+        setWorkStatus("submitting");
+
+        const transcript = await whisperRef.current.transcribeFloat32Array(audio, language);
+
+        if (transcript.trim().length < 2) {
+          throw new Error("Could not understand your speech. Please try again.");
+        }
+
+        // Submit to server
+        if (session === null || currentQuestion === null) return;
+        const response = await submitAnswer({
+          session,
+          question: currentQuestion,
+          history,
+          transcript,
+        });
+
+        const nextHistory = [...history, response.turn];
+        setSession(response.session);
+        setHistory(nextHistory);
+        setSuggestedAnswer(null);
+        setSpeakingTips([]);
+        persistInterview(response.session, currentQuestion, null, nextHistory);
+
+        // Prefetch next question
+        prefetchSessionRef.current = response.session;
+        getNextQuestion({
+          session: response.session,
+          history: nextHistory,
+        }).then((nextResponse) => {
+          prefetchedNextQuestionRef.current = nextResponse;
+        }).catch(() => {
+          prefetchedNextQuestionRef.current = null;
+        });
+      } catch (error: unknown) {
+        setErrorMessage(getErrorMessage(error));
+      } finally {
+        setWorkStatus("idle");
+      }
+      return;
+    }
+
+    // Web Speech API fallback path (original code)
     if (session === null || currentQuestion === null || activeSpeechCaptureRef.current === null) {
       return;
     }
@@ -534,6 +625,12 @@ export const App = () => {
     clearLs(LS_CV);
     clearLs(LS_JD);
     clearLs(LS_MATCH);
+
+    // Cleanup Whisper
+    whisperRef.current?.terminate();
+    whisperRef.current = null;
+    audioCaptureRef.current = null;
+    setWhisperStatus("idle");
   };
 
   const playQuestion = async (text: string, nextLanguage: InterviewLanguage): Promise<void> => {
@@ -627,6 +724,7 @@ export const App = () => {
           onStopRecording={handleStopRecording}
           onSuggest={handleSuggestAnswer}
           micStream={micStream}
+          whisperStatus={whisperStatus}
         />
       ) : null}
 

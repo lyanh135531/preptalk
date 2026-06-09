@@ -32,6 +32,7 @@ type InterviewScreenProps = {
   readonly onStopRecording: () => Promise<void>;
   readonly onSuggest: () => Promise<void>;
   readonly micStream: MediaStream | null;
+  readonly whisperStatus?: "idle" | "loading" | "ready" | "error";
 };
 
 const languageLabels: Record<InterviewLanguage, string> = {
@@ -288,8 +289,33 @@ export const InterviewScreen = (props: InterviewScreenProps) => {
               </div>
               <h3 className="text-lg font-bold font-display text-ink">Ready for your voice answer</h3>
               <p className="mt-2 text-xs leading-6 text-slate-400 max-w-sm mx-auto">
-                Press "Answer" to start. Speak clearly in the selected language, then press "Stop" to trigger AI scoring.
+                Press &quot;Answer&quot; to start. Speak clearly in the selected language, then press &quot;Stop&quot; to trigger AI scoring.
               </p>
+
+              {/* Whisper model status */}
+              {props.whisperStatus && props.whisperStatus !== "idle" ? (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-line bg-slate-900/50 px-3 py-2 text-xs">
+                  {props.whisperStatus === "loading" ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <span className="text-slate-300">Loading Whisper model... (first time ~140MB)</span>
+                    </>
+                  ) : props.whisperStatus === "ready" ? (
+                    <>
+                      <span className="text-emerald-400">✓</span>
+                      <span className="text-emerald-300">Whisper ready (offline transcription)</span>
+                    </>
+                  ) : props.whisperStatus === "error" ? (
+                    <>
+                      <span className="text-amber-400">⚠</span>
+                      <span className="text-amber-300">Whisper unavailable — using browser speech recognition</span>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           )}
         </section>
