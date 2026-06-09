@@ -125,6 +125,8 @@ const answerPayloadSchema = z.object({
   transcript: z.string().trim().min(1).max(12000),
 });
 
+const languageName: Record<string, string> = { vi: "Vietnamese", en: "English" };
+
 const answerFeedbackJsonSchema = {
   type: "object" as const,
   additionalProperties: false,
@@ -184,13 +186,38 @@ const answerFeedbackJsonSchema = {
   },
 };
 
-const languageName: Record<string, string> = { vi: "Vietnamese", en: "English" };
+// Build a compact JSON schema example for the prompt
+const answerSchemaExample = JSON.stringify({
+  correctedAnswer: "<grammatically corrected version of transcript>",
+  correctionSpans: [
+    { text: "<the corrected text segment>", type: "<grammar|spelling|word_choice|clarity|content_gap|strong_point|neutral>" }
+  ],
+  issues: [
+    { type: "<grammar|spelling|word_choice|clarity|content_gap|strong_point>", originalText: "<original text>", suggestedText: "<suggested replacement>", explanation: "<why>", severity: "<low|medium|high>" }
+  ],
+  grammarFeedback: ["<string 1>", "<string 2>"],
+  contentFeedback: ["<string 1>", "<string 2>"],
+  pronunciationHints: ["<string 1>", "<string 2>"],
+  strengths: ["<string 1>", "<string 2>"],
+  improvements: ["<string 1>", "<string 2>"],
+  score: { communication: 80, roleRelevance: 75, structure: 70, languageAccuracy: 85, confidence: 78 },
+  decision: "<follow_up|new_topic|end>",
+  decisionReason: "<brief explanation>"
+}, null, 2);
 
 const buildSystemInstruction = (lang: string) => [
   "You are PrepTalk, an AI interview coach evaluating a candidate's spoken interview answer.",
   `Respond in ${languageName[lang] || "English"}.`,
-  "Evaluate the candidate's transcript for grammar, content, clarity, and relevance.",
-  "Return only structured JSON matching the schema. No markdown, no code, no explanations.",
+  "",
+  "CRITICAL RULES:",
+  "1. Return ONLY a single valid JSON object. Never wrap in markdown or code blocks.",
+  "2. You MUST include ALL required fields listed in the schema.",
+  "3. The 'score' field MUST be an object with these 5 integer fields: communication, roleRelevance, structure, languageAccuracy, confidence. Values MUST be integers 0-100.",
+  "4. Each correctionSpans item MUST have ONLY 'text' and 'type' fields.",
+  "5. Each issues item MUST have ALL of: type, originalText, suggestedText, explanation, severity.",
+  "",
+  "Example response format:",
+  answerSchemaExample,
 ].join("\n");
 
 const MAX_HISTORY_TURNS = 3;
@@ -229,36 +256,16 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     {
       role: "user",
       content: [
+        `Evaluate this interview answer. Return ONLY valid JSON matching the exact schema from the system prompt.`,
+        ``,
         `Job role: ${session.role}`,
-        `Candidate experience: ${session.yearsOfExperience}`,
-        `Interview question: ${question.text}`,
-        `Candidate's spoken answer (transcript): ${trimmedTranscript}`,
-        "",
-        "Recent interview history:",
-        formatHistory(history),
-        "",
-        "Evaluate the candidate's spoken answer on these criteria (0-100 each):",
-        "- communication: How clearly and fluently they expressed their ideas",
-        "- roleRelevance: How relevant the answer is to the target role",
-        "- structure: How well-organized the answer is",
-        "- languageAccuracy: Grammar and vocabulary correctness",
-        "- confidence: How confident and professional the tone is",
-        "",
-        "Also provide:",
-        "- correctedAnswer: A grammatically corrected version of their transcript",
-        "- correctionSpans: Mark specific corrections (grammar, spelling, word choice, clarity, content gaps, strong points)",
-        "- issues: List specific issues with severity (low/medium/high)",
-        "- grammarFeedback: Array of grammar feedback strings",
-        "- contentFeedback: Array of content feedback strings",
-        "- pronunciationHints: Array of pronunciation tips",
-        "- strengths: Array of what the candidate did well",
-        "- improvements: Array of areas to improve",
-        "- decision: 'follow_up' to ask more on this topic, or 'new_topic' to move on",
-        "- decisionReason: Brief explanation of the decision",
-        "",
-        "Do NOT write code. Do NOT write technical examples.",
-        "Return only JSON.",
-      ].join("\n"),
+        `Experience: ${session.yearsOfExperience}`,
+        `Question: ${question.text}`,
+        `Answer: ${trimmedTranscript}`,
+        history.length > 0 ? `` : null,
+        history.length > 0 ? `Recent history:` : null,
+        history.length > 0 ? formatHistory(history) : null,
+      ].filter(Boolean).join("\n"),
     },
   ];
 
@@ -278,8 +285,29 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  let parsedRaw: unknown;
   try {
-    const aiResponse = answerFeedbackSchema.parse(JSON.parse(raw));
+    parsedRaw = JSON.parse(raw);
+  } catch {
+    // Try extracting JSON from markdown code blocks
+    const codeBlockMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+    if (codeBlockMatch?.[1]) {
+      parsedRaw = JSON.parse(codeBlockMatch[1].trim());
+    } else {
+      // Try extracting raw JSON object from text
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch?.[0]) {
+        parsedRaw = JSON.parse(jsonMatch[0]);
+      } else {
+        console.warn("[openrouter] answer: cannot extract JSON from raw response", { raw: raw.substring(0, 300) });
+        res.status(502).json({ error: "The AI interviewer returned an invalid response. Please try again.", code: "AI_UNAVAILABLE" });
+        return;
+      }
+    }
+  }
+
+  try {
+    const aiResponse = answerFeedbackSchema.parse(parsedRaw);
     const isFinalQuestion = session.currentQuestionNumber >= session.maxQuestions;
 
     const feedback = {
