@@ -59,7 +59,9 @@ export const App = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [storedInterview, setStoredInterview] = useState<StoredInterview | null>(null);
+  const [micStream, setMicStream] = useState<MediaStream | null>(null);
   const activeSpeechCaptureRef = useRef<ActiveSpeechCapture | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
 
   const stopCurrentPlayback = (): void => {
     stopSpeech();
@@ -198,6 +200,17 @@ export const App = () => {
       }
 
       stopCurrentPlayback();
+
+      // Get mic stream for visualization
+      if (navigator.mediaDevices?.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+          micStreamRef.current = stream;
+          setMicStream(stream);
+        }).catch(() => {
+          // Silently fail — visualizer will show no data
+        });
+      }
+
       activeSpeechCaptureRef.current = startSpeechCapture(session.language);
       setWorkStatus("recording");
     } catch (error: unknown) {
@@ -221,6 +234,14 @@ export const App = () => {
     try {
       const speechCapture = await activeSpeechCaptureRef.current.stop();
       activeSpeechCaptureRef.current = null;
+
+      // Stop mic stream for visualizer
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+        micStreamRef.current = null;
+        setMicStream(null);
+      }
+
       setWorkStatus("submitting");
 
       if (speechCapture.durationMs < 700 || speechCapture.transcript.length < 2) {
@@ -374,6 +395,14 @@ export const App = () => {
   const handleResetInterview = (): void => {
     activeSpeechCaptureRef.current = null;
     stopCurrentPlayback();
+
+    // Stop mic stream
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+      setMicStream(null);
+    }
+
     clearStoredInterview();
     setStoredInterview(null);
     setSession(null);
@@ -463,6 +492,7 @@ export const App = () => {
           onStartRecording={handleStartRecording}
           onStopRecording={handleStopRecording}
           onSuggest={handleSuggestAnswer}
+          micStream={micStream}
         />
       ) : null}
 

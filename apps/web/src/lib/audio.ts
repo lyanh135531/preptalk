@@ -111,7 +111,7 @@ export const startSpeechCapture = (
 
   recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = speechLanguageByCode[language];
+  recognition.lang = speechLanguageByCode[language] ?? "en-US";
 
   recognition.onresult = (event: SpeechRecognitionEvent): void => {
     const nextTranscript = collectTranscript(event);

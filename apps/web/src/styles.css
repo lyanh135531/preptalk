@@ -124,3 +124,58 @@ select:focus-visible {
   animation: wave-bounce 1.6s ease-in-out infinite;
 }
 
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile question sticky strip */
+.mobile-question-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(7, 11, 18, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(39, 52, 71, 0.6);
+  padding: 0.75rem 1rem;
+  margin: -0.75rem -1rem 0;
+}
+
+@media (min-width: 1024px) {
+  .mobile-question-sticky {
+    position: static;
+    z-index: auto;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: none;
+    padding: 0;
+    margin: 0;
+  }
+}
+
+/* Page transitions */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+

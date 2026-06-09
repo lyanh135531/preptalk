@@ -23,7 +23,7 @@ type SetupScreenProps = {
 const customRoleValue = "__custom_role__";
 
 export const SetupScreen = (props: SetupScreenProps) => (
-  <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-8 sm:px-6 lg:px-8">
+  <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-8 sm:px-6 lg:px-8 animate-fade-in-up">
     {/* Header */}
     <header className="flex items-center justify-between border-b border-line/60 pb-5">
       <div className="flex items-center gap-3">
@@ -98,7 +98,7 @@ export const SetupScreen = (props: SetupScreenProps) => (
               Your Name
             </label>
             <input
-              className="mt-2 w-full rounded-xl custom-input px-4 py-3 text-base text-ink shadow-sm placeholder:text-slate-500"
+              className="mt-2 w-full rounded-xl custom-input px-4 py-3 text-base text-ink shadow-sm placeholder:text-slate-400"
               placeholder="Example: Alex Nguyen"
               value={props.candidateName}
               onChange={(event) => props.onCandidateNameChange(event.target.value)}
@@ -158,7 +158,7 @@ export const SetupScreen = (props: SetupScreenProps) => (
                 Custom Role Title
               </label>
               <input
-                className="mt-2 w-full rounded-xl custom-input px-4 py-3 text-base text-ink shadow-sm placeholder:text-slate-500"
+                className="mt-2 w-full rounded-xl custom-input px-4 py-3 text-base text-ink shadow-sm placeholder:text-slate-400"
                 placeholder="Example: Sales Operations Manager"
                 value={props.customRole}
                 onChange={(event) => props.onCustomRoleChange(event.target.value)}
@@ -193,7 +193,7 @@ type MetricProps = {
 
 const Metric = ({ label, value, description }: MetricProps) => (
   <div className="rounded-xl border border-line bg-panel/40 p-4 transition-all duration-300 hover:border-slate-700">
-    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
     <p className="mt-1.5 text-base font-bold text-ink font-display">{value}</p>
     <p className="mt-1 text-[11px] text-slate-400">{description}</p>
   </div>

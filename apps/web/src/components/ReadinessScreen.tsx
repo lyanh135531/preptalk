@@ -12,7 +12,7 @@ type ReadinessScreenProps = {
 };
 
 export const ReadinessScreen = (props: ReadinessScreenProps) => (
-  <section className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-4 py-8">
+  <section className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-4 py-8 animate-fade-in-up">
     <div className="w-full rounded-2xl border border-line bg-panel/75 p-6 shadow-soft sm:p-8 backdrop-blur-md glass-panel">
       <div className="flex items-center gap-4">
         <div className="relative flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-indigo-650 text-white shadow-glow">

@@ -37,7 +37,7 @@ export const SummaryScreen = (props: SummaryScreenProps) => {
   };
 
   return (
-    <section className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <section className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8 animate-fade-in-up">
       {/* Header card */}
       <header className="flex flex-col gap-4 border-b border-line pb-5 md:flex-row md:items-center md:justify-between">
         <div>
@@ -71,7 +71,7 @@ export const SummaryScreen = (props: SummaryScreenProps) => {
               </div>
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
                 {Object.entries(summary.averageScore).map(([key, value]) => (
-                  <ScoreGauge key={key} label={scoreLabels[key as keyof Score]} value={value} />
+                  <ScoreGauge key={key} label={scoreLabels[key as keyof Score] ?? key} value={value as number} />
                 ))}
               </div>
             </section>
@@ -93,9 +93,14 @@ export const SummaryScreen = (props: SummaryScreenProps) => {
               return (
                 <div className="rounded-2xl border border-line bg-panel/45 p-5 backdrop-blur-md glass-panel" key={turn.id}>
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/45 pb-3 mb-4">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Question {index + 1}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Question {index + 1}
+                      </span>
+                      <span className="rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider border bg-slate-900/60 border-slate-700/50 text-slate-300">
+                        {turn.question.category}
+                      </span>
+                    </div>
                     <span className="rounded-lg bg-indigo-950/45 border border-indigo-900/50 px-2.5 py-1 text-xs font-bold text-indigo-300">
                       Overall Score: {turn.feedback.score.communication}
                     </span>
@@ -103,12 +108,12 @@ export const SummaryScreen = (props: SummaryScreenProps) => {
                   <h3 className="text-base font-bold text-ink mb-4 font-display leading-7">{turn.question.text}</h3>
                   <div className="grid gap-5 lg:grid-cols-2">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Your Answer Transcript</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Your Answer Transcript</p>
                       <p className="whitespace-pre-wrap rounded-xl border border-line bg-slate-950/70 p-4 text-xs leading-6 text-slate-300 min-h-[100px]">{turn.transcript}</p>
                     </div>
                     <div className="relative">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Coach Improved Answer</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Coach Improved Answer</p>
                         <button
                           className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-cyan-400 transition"
                           type="button"
@@ -165,7 +170,7 @@ const SummaryList = ({ title, items, cardStyle = "" }: SummaryListProps) => (
         ))}
       </ul>
     ) : (
-      <p className="text-xs text-slate-500 italic">No aggregated insights generated yet.</p>
+      <p className="text-xs text-slate-400 italic">No aggregated insights generated yet.</p>
     )}
   </section>
 );
