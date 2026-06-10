@@ -34,6 +34,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use("/api/health", healthRouter);
 app.use("/api/tts", ttsRouter);
 app.use("/api/cv/parse", cvParseRouter);
+app.use("/api/cv", cvParseRouter);
 app.use("/api/jd/analyze", jdAnalyzeRouter);
 app.use("/api/cv-jd/match", matchRouter);
 app.use("/api/interviews/start", startRouter);
