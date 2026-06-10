@@ -137,7 +137,7 @@ export type SaveCvResult = {
 
 const saveCvResponseSchema = z.object({
   cv: z.record(z.string(), z.unknown()),
-  fileId: z.string().uuid(),
+  fileId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}.pdf$/i),
   fileName: z.string().min(1),
 });
 
