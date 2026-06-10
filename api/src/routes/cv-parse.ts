@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Thư mục uploads (ngoài src, cùng cấp với src/)
-const UPLOADS_DIR = path.resolve(__dirname, "../../uploads");
+const UPLOADS_DIR = path.join("/tmp", "preptalk", "uploads");
 const CV_DIR = path.join(UPLOADS_DIR, "cv");
 
 // Đảm bảo thư mục tồn tại
