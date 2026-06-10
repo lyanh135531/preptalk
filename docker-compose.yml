@@ -1,45 +1,37 @@
-1|services:
-2|  # ── PrepTalk (API + Static Frontend) ──
-3|  # Single container: Express backend serves built React frontend
-4|  # Accessible on port HOST_PORT (default 8080)
-5|  preptalk:
-6|    build:
-7|      context: .
-8|      dockerfile: Dockerfile
-9|      target: api
-10|    ports:
-11|      - "${HOST_PORT:-3217}:4000"
-12|    env_file:
-13|      - .env
-14|    environment:
-15|      - NODE_ENV=production
-16|      - PORT=4000
-17|    volumes:
-18|      - tts-cache:/tmp/tts-cache
-19|    restart: unless-stopped
-20|    healthcheck:
-21|      test:
-22|        [
-23|          "CMD",
-24|          "wget",
-25|          "--no-verbose",
-26|          "--tries=1",
-27|          "--spider",
-28|          "http://localhost:4000/api/health",
-29|        ]
-30|      interval: 30s
-31|      timeout: 5s
-32|      start_period: 15s
-33|      retries: 3
-34|    deploy:
-35|      resources:
-36|        limits:
-37|          memory: 512M
-38|          cpus: "1.0"
-39|        reservations:
-40|          memory: 128M
-41|          cpus: "0.25"
-42|
-43|volumes:
-44|  tts-cache:
-45|
+services:
+  # ── PrepTalk (API + Static Frontend) ──
+  # Single container: Express backend serves built React frontend
+  # Accessible on port HOST_PORT (default 8080)
+  preptalk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    ports:
+      - "${HOST_PORT:-3217}:4000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+    volumes:
+      - tts-cache:/tmp/tts-cache
+      - /home/systems/preptalk/uploads:/home/systems/preptalk/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
+
+volumes:
+  tts-cache:
