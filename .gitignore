@@ -13,3 +13,4 @@ playwright-report/
 test-results/
 api/src/routes/*.js
 api/src/server.js
+uploads/
