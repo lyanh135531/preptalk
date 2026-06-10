@@ -64,12 +64,19 @@ for i in $(seq 1 12); do
     sleep 5
     STATUS=$(curl -s http://localhost:3217/api/health 2>/dev/null)
     if echo "$STATUS" | grep -q '"ok":true'; then
-        log "✅ Deploy successful! Container is healthy."
+        log "Deploy successful! Container is healthy."
         log "New commits deployed:"
         git log --oneline -3 "$BRANCH" | tee -a "$LOGFILE"
+
+        # Restart nport tunnel (container restart kills the tunnel)
+        log "Restarting nport tunnel..."
+        "$PROJECT_DIR/scripts/nport-renew.sh" stop >> "$LOGFILE" 2>&1
+        sleep 2
+        "$PROJECT_DIR/scripts/nport-renew.sh" start >> "$LOGFILE" 2>&1
+        log "nport tunnel restarted"
         exit 0
     fi
 done
 
-log "⚠️  Container started but health check did not pass yet"
+log "Container started but health check did not pass yet"
 exit 1

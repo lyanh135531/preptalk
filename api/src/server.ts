@@ -41,6 +41,10 @@ app.use("/api/interviews/suggest", suggestRouter);
 app.use("/api/interviews/answer", answerRouter);
 app.use("/api/interviews/next", nextRouter);
 
+// ── Static Uploads ──
+const uploadsDir = path.resolve(__dirname, "../uploads");
+app.use("/uploads", express.static(uploadsDir));
+
 // ── Static Frontend ──
 const distCandidates = [
   "/app/webapp/dist",                                // Docker production (absolute)

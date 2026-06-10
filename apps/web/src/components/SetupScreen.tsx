@@ -26,6 +26,8 @@ type SetupScreenProps = {
   readonly cvAnalysis: CvAnalysis | null;
   readonly jdAnalysis: JdAnalysis | null;
   readonly cvJdMatch: CvJdMatch | null;
+  readonly cvFile: { fileId: string; fileName: string } | null;
+  readonly jdText: string;
   readonly isParsingCv: boolean;
   readonly isAnalyzingJd: boolean;
   readonly isMatching: boolean;
@@ -52,12 +54,19 @@ export const SetupScreen = (props: SetupScreenProps) => {
   const [typedText, setTypedText] = useState("");
   const [showSubtitle, setShowSubtitle] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [jdText, setJdText] = useState("");
+  const [jdText, setJdText] = useState(props.jdText ?? "");
   const [dragOver, setDragOver] = useState(false);
   const headlineRef = useRef<HTMLSpanElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fullHeadline = "Practice interviews with ";
+
+  // Sync JD text từ cache khi mount
+  useEffect(() => {
+    if (props.jdText) {
+      setJdText(props.jdText);
+    }
+  }, [props.jdText]);
 
   useEffect(() => {
     let i = 0;
@@ -329,7 +338,8 @@ export const SetupScreen = (props: SetupScreenProps) => {
                         <FileText size={20} className="text-emerald-400 shrink-0" />
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-emerald-300">CV analyzed successfully!</p>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <p className="text-xs text-slate-400 mt-0.5 truncate">
+                            {props.cvFile?.fileName ? `${props.cvFile.fileName} · ` : ""}
                             {props.cvAnalysis.candidateName && `${props.cvAnalysis.candidateName} · `}
                             {props.cvAnalysis.skills.length} skills · {props.cvAnalysis.experience.length} roles
                           </p>

@@ -4,7 +4,7 @@
 # Or run via cron: */5 * * * * /path/to/nport-renew.sh check
 
 PORT="${NPORT_PORT:-3217}"
-SERVICE="${NPORT_SERVICE:-talkone}"
+SERVICE="${NPORT_SERVICE:-preptalk}"
 PIDFILE="/tmp/nport-${PORT}.pid"
 LOGFILE="/tmp/nport-${PORT}.log"
 RENEW_INTERVAL=14400  # 4 hours in seconds

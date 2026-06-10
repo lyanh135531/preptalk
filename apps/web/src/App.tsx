@@ -19,7 +19,7 @@ import {
   submitAnswer,
   suggestAnswer,
   getNextQuestion,
-  parseCv,
+  saveCv,
   analyzeJd,
   matchCvJd,
 } from "./api/client";
@@ -56,6 +56,8 @@ const defaultRole = "Backend Engineer .NET";
 const LS_CV = "preptalk_cv";
 const LS_JD = "preptalk_jd";
 const LS_MATCH = "preptalk_match";
+const LS_CV_FILE = "preptalk_cv_file"; // { fileId, fileName }
+const LS_JD_TEXT = "preptalk_jd_text";
 
 const loadFromLs = <T,>(key: string): T | null => {
   try {
@@ -92,6 +94,8 @@ export const App = () => {
   const [cvAnalysis, setCvAnalysis] = useState<CvAnalysis | null>(loadFromLs<CvAnalysis>(LS_CV));
   const [jdAnalysis, setJdAnalysis] = useState<JdAnalysis | null>(loadFromLs<JdAnalysis>(LS_JD));
   const [cvJdMatch, setCvJdMatch] = useState<CvJdMatch | null>(loadFromLs<CvJdMatch>(LS_MATCH));
+  const [cvFile, setCvFile] = useState<{ fileId: string; fileName: string } | null>(loadFromLs(LS_CV_FILE));
+  const [jdText, setJdText] = useState<string>(loadFromLs<string>(LS_JD_TEXT) ?? "");
   const [isParsingCv, setIsParsingCv] = useState(false);
   const [isAnalyzingJd, setIsAnalyzingJd] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
@@ -186,16 +190,20 @@ export const App = () => {
     setErrorMessage(null);
     setIsParsingCv(true);
     try {
-      const cv = await parseCv(file);
-      setCvAnalysis(cv);
-      saveToLs(LS_CV, cv);
+      const result = await saveCv(file);
+      setCvAnalysis(result.cv);
+      saveToLs(LS_CV, result.cv);
+      // Cache file info
+      const fileInfo = { fileId: result.fileId, fileName: result.fileName };
+      setCvFile(fileInfo);
+      saveToLs(LS_CV_FILE, fileInfo);
       // Auto-fill name from CV if empty
-      if (!candidateName.trim() && cv.candidateName) {
-        setCandidateName(cv.candidateName);
+      if (!candidateName.trim() && result.cv.candidateName) {
+        setCandidateName(result.cv.candidateName);
       }
       // Auto-fill role from CV if it matches a predefined role
-      if (cv.experience.length > 0 && cv.experience[0]) {
-        const latestRole = cv.experience[0].role;
+      if (result.cv.experience.length > 0 && result.cv.experience[0]) {
+        const latestRole = result.cv.experience[0].role;
         const matched = predefinedRoles.find(r => r.toLowerCase().includes(latestRole.toLowerCase()) || latestRole.toLowerCase().includes(r.toLowerCase()));
         if (matched) setSelectedRole(matched);
       }
@@ -225,6 +233,8 @@ export const App = () => {
       const jd = await analyzeJd(jdText);
       setJdAnalysis(jd);
       saveToLs(LS_JD, jd);
+      // Cache JD text for restore on F5
+      saveToLs(LS_JD_TEXT, jdText);
     } catch (error: unknown) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -622,9 +632,13 @@ export const App = () => {
     setCvAnalysis(null);
     setJdAnalysis(null);
     setCvJdMatch(null);
+    setCvFile(null);
+    setJdText("");
     clearLs(LS_CV);
     clearLs(LS_JD);
     clearLs(LS_MATCH);
+    clearLs(LS_CV_FILE);
+    clearLs(LS_JD_TEXT);
 
     // Cleanup Whisper
     whisperRef.current?.terminate();
@@ -670,6 +684,8 @@ export const App = () => {
           cvAnalysis={cvAnalysis}
           jdAnalysis={jdAnalysis}
           cvJdMatch={cvJdMatch}
+          cvFile={cvFile}
+          jdText={jdText}
           isParsingCv={isParsingCv}
           isAnalyzingJd={isAnalyzingJd}
           isMatching={isMatching}

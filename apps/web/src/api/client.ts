@@ -23,6 +23,7 @@ import {
   analyzeJdResponseSchema,
   matchCvJdResponseSchema,
 } from "@preptalk/shared";
+import { z } from "zod";
 import type { ZodSchema } from "zod";
 
 export class ApiError extends Error {
@@ -126,6 +127,40 @@ export const parseCv = async (file: File): Promise<CvAnalysis> => {
 
   const json: unknown = await response.json();
   return parseCvResponseSchema.parse(json).cv;
+};
+
+export type SaveCvResult = {
+  readonly cv: CvAnalysis;
+  readonly fileId: string;
+  readonly fileName: string;
+};
+
+const saveCvResponseSchema = z.object({
+  cv: z.record(z.string(), z.unknown()),
+  fileId: z.string().uuid(),
+  fileName: z.string().min(1),
+});
+
+export const saveCv = async (file: File): Promise<SaveCvResult> => {
+  const formData = new FormData();
+  formData.append("cv", file);
+
+  const response = await fetch("/api/cv/save", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const json: unknown = await response.json();
+  const parsed = saveCvResponseSchema.parse(json);
+  return {
+    cv: parsed.cv as CvAnalysis,
+    fileId: parsed.fileId,
+    fileName: parsed.fileName,
+  };
 };
 
 export const analyzeJd = async (jdText: string): Promise<JdAnalysis> => {
