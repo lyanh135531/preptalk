@@ -113,10 +113,10 @@ export class WhisperTranscriber {
       }
       this.pendingResolve = resolve;
       this.pendingReject = reject;
-      const audioArray = Array.from(audio);
       this.worker.postMessage({
         type: "transcribe",
-        data: { audio: audioArray, language },
+        audio: audio.buffer,
+        language,
       });
     });
   }
@@ -135,10 +135,10 @@ export class WhisperTranscriber {
       }
       this.pendingResolve = resolve;
       this.pendingReject = reject;
-      const audioArray = Array.from(audio);
       this.worker?.postMessage({
         type: "transcribe",
-        data: { audio: audioArray, language: this.options.language },
+        audio: audio.buffer,
+        language: this.options.language,
       });
     });
   }

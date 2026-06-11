@@ -5,8 +5,8 @@ env.useBrowserCache = true;
 
 let transcriber: any = null;
 
-self.onmessage = async (event: MessageEvent<{ type: string; data?: any }>) => {
-  const { type, data } = event.data;
+self.onmessage = async (event:	MessageEvent<{ type: string; data?: any }>) => {
+  const { type } = event.data;
 
   if (type === "load") {
     try {
@@ -32,16 +32,14 @@ self.onmessage = async (event: MessageEvent<{ type: string; data?: any }>) => {
       return;
     }
     try {
-      const { audio, language } = data as {
-        audio: number[];
-        language: string;
-      };
-      const result = await transcriber(audio, {
+      const { audio, language } = event.data as unknown as { audio: ArrayBuffer; language: string };
+      const float32 = new Float32Array(audio);
+      const result = await transcriber(float32, {
         language,
         task: "transcribe",
         return_timestamps: false,
-      } as any);
-      self.postMessage({ type: "result", text: result.text });
+      });
+      self.postMessage({ type: "result", text: result?.text ?? "" });
     } catch (transcribeError) {
       self.postMessage({
         type: "error",
